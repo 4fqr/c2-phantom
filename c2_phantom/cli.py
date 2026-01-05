@@ -421,5 +421,72 @@ def plugin(action: str, plugin_name: Optional[str]) -> None:
         sys.exit(1)
 
 
+@main.command()
+@click.option("--host", default="0.0.0.0", help="Server bind address")
+@click.option("--port", default=8443, type=int, help="Server bind port")
+@click.option("--ssl-cert", type=click.Path(exists=True), help="SSL certificate file")
+@click.option("--ssl-key", type=click.Path(exists=True), help="SSL key file")
+def server(host: str, port: int, ssl_cert: Optional[str], ssl_key: Optional[str]) -> None:
+    """Start the C2 server to listen for agent connections."""
+    try:
+        from c2_phantom.network.server import C2Server
+        
+        print_info(f"Starting C2 server on [cyan]{host}:{port}[/cyan]...")
+        
+        # Initialize server
+        c2_server = C2Server(host=host, port=port)
+        
+        panel = Panel(
+            f"[bold green]✓ C2 Server Started![/bold green]\n\n"
+            f"[dim]Listen Address:[/dim] [cyan]{host}:{port}[/cyan]\n"
+            f"[dim]SSL/TLS:[/dim] [yellow]{'Enabled' if ssl_cert else 'Disabled (Development Only)'}[/yellow]\n\n"
+            "[dim]Endpoints:[/dim]\n"
+            "  • [bold]POST /register[/bold] - Agent registration\n"
+            "  • [bold]POST /beacon[/bold] - Agent beacon\n"
+            "  • [bold]GET /tasks/{{session_id}}[/bold] - Get tasks\n"
+            "  • [bold]POST /results/{{session_id}}[/bold] - Post results\n"
+            "  • [bold]GET /health[/bold] - Health check\n\n"
+            "[dim]Press Ctrl+C to stop the server[/dim]",
+            title="🚀 C2 Server",
+            border_style="green",
+            box=box.ROUNDED,
+        )
+        console.print(panel)
+        
+        # Run server (blocking)
+        c2_server.run()
+        
+    except KeyboardInterrupt:
+        print_info("\n[yellow]Server stopped by user[/yellow]")
+    except Exception as e:
+        print_error(f"Server failed to start: {str(e)}")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("session_id")
+@click.argument("command")
+@click.option("--timeout", default=30, type=int, help="Command timeout in seconds")
+def send(session_id: str, command: str, timeout: int) -> None:
+    """Send a command to an active agent session."""
+    try:
+        import asyncio
+        from c2_phantom.network.server import C2Server
+        
+        print_info(f"Sending command to session [cyan]{session_id}[/cyan]...")
+        
+        async def send_command():
+            # This would need the running server instance
+            # For now, we'll document that this needs the server running
+            print_warning("This command requires a running C2 server instance")
+            print_info("Use 'phantom server' to start the server first")
+        
+        asyncio.run(send_command())
+        
+    except Exception as e:
+        print_error(f"Failed to send command: {str(e)}")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()

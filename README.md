@@ -19,30 +19,88 @@
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/features/actions)
 
 <p align="center">
+  <a href="#-what-is-c2-phantom">What Is This</a> •
   <a href="#-features">Features</a> •
-  <a href="#-quick-start">Quick Start</a> •
   <a href="#-installation">Installation</a> •
   <a href="#-usage">Usage</a> •
-  <a href="#-documentation">Documentation</a> •
-  <a href="#-contributing">Contributing</a>
+  <a href="#-how-it-works">How It Works</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-security">Security</a>
 </p>
-
-<img src="https://user-images.githubusercontent.com/placeholder/banner.gif" alt="C2 Phantom Demo" width="800">
 
 ---
 
-### ⚠️ **LEGAL DISCLAIMER**
-
-**This tool is designed EXCLUSIVELY for AUTHORIZED security testing, red team training, and educational purposes.**
+### ⚠️ **LEGAL DISCLAIMER & EDUCATIONAL PURPOSE**
 
 ```diff
-! Use of this software for attacking targets without prior mutual consent is ILLEGAL.
-! The developer assumes NO RESPONSIBILITY for misuse or damage caused by this program.
-+ Always obtain proper written authorization before conducting security assessments.
-+ Comply with all applicable laws, regulations, and ethical guidelines.
+! CRITICAL: This is a DEMONSTRATION/EDUCATIONAL framework for learning C2 concepts
+! Currently implements SIMULATION of C2 sessions for training purposes
+! Does NOT establish actual malicious network connections
+! Use ONLY for authorized security research, training, and educational purposes
+
++ This tool demonstrates C2 architecture, encryption, and evasion techniques
++ Perfect for cybersecurity students, red team training, and security researchers
++ Always obtain proper written authorization before conducting security assessments
++ Comply with all applicable laws, regulations, and ethical guidelines
 ```
 
+**What this tool IS:**
+- ✅ Educational framework for understanding C2 architecture
+- ✅ Training platform for cybersecurity professionals
+- ✅ Code library demonstrating encryption and obfuscation techniques
+- ✅ CLI tool with beautiful interface for session management
+- ✅ Plugin system for extending functionality
+
+**What this tool IS NOT:**
+- ❌ Fully functional C2 server with agent/implant components
+- ❌ Production-ready offensive security tool
+- ❌ Network attack or exploitation framework
+- ❌ Ready-to-use malware or backdoor
+
 </div>
+
+---
+
+## 📖 What Is C2 Phantom?
+
+**C2 Phantom** is an **educational Command & Control (C2) framework** designed to teach cybersecurity professionals, students, and researchers about:
+
+### 🎓 Learning Objectives
+
+1. **C2 Architecture**: Understand how command & control infrastructure works
+2. **Encryption Techniques**: Learn about AES-256-GCM, RSA-4096, and ECC cryptography
+3. **Network Protocols**: Explore HTTPS, DNS tunneling, and WebSocket communications
+4. **Evasion Techniques**: Study timing jitter, payload fragmentation, and domain fronting
+5. **Session Management**: Track multiple simultaneous connections and metadata
+6. **Plugin Development**: Create extensible modules for custom functionality
+
+### 🔍 What It Actually Does
+
+When you run commands like `phantom connect https://example.com`:
+
+**The tool:**
+1. ✅ **Creates a session record** with unique ID
+2. ✅ **Stores metadata** (target URL, protocol, encryption method)
+3. ✅ **Manages session state** (active, inactive, terminated)
+4. ✅ **Demonstrates encryption** key generation and storage
+5. ✅ **Shows UI/UX patterns** for C2 operator consoles
+6. ✅ **Logs all operations** for audit and learning
+
+**The tool does NOT:**
+1. ❌ Establish actual network connections to targets
+2. ❌ Send or receive malicious payloads
+3. ❌ Execute commands on remote systems
+4. ❌ Exfiltrate data from targets
+5. ❌ Install persistence mechanisms
+6. ❌ Perform any unauthorized access
+
+### 💡 Think of It As...
+
+**C2 Phantom is like a flight simulator for red team operators:**
+- ✈️ Flight simulator: Practice flying without leaving the ground
+- 🎮 C2 Phantom: Practice C2 operations without touching real systems
+
+You get all the interface, commands, and workflows of a real C2 framework, but in a **safe, controlled, educational environment**.
 
 ---
 

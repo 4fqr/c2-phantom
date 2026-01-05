@@ -7,6 +7,7 @@ Beautiful command-line interface with rich output and comprehensive features.
 import sys
 from pathlib import Path
 from typing import Optional
+import asyncio
 
 import click
 from rich.console import Console
@@ -22,6 +23,7 @@ from c2_phantom.core.session import SessionManager, SessionStatus
 from c2_phantom.core.exceptions import C2PhantomError
 from c2_phantom.crypto.keys import KeyManager
 from c2_phantom.utils.ui import print_banner, print_success, print_error, print_info, print_warning
+from c2_phantom.network.client import C2Client
 
 console = Console()
 
@@ -342,42 +344,123 @@ def upload(
 @click.option("--output", is_flag=True, help="Show command output")
 @click.option("--timeout", type=int, default=30, help="Execution timeout in seconds")
 @click.option("--async", "is_async", is_flag=True, help="Execute asynchronously")
-def execute(command: str, session: str, output: bool, timeout: int, is_async: bool) -> None:
+@click.option("--server", default="http://localhost:8443", help="C2 server URL")
+def execute(command: str, session: str, output: bool, timeout: int, is_async: bool, server: str) -> None:
     """Execute commands on target systems."""
     try:
-        exec_mode = "asynchronous" if is_async else "synchronous"
-        print_info(f"Executing command ({exec_mode}) on session [cyan]{session[:8]}...[/cyan]")
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("[cyan]Executing command...", total=None)
-
-            # Simulate command execution
-            import time
-            time.sleep(1)
-
-            progress.update(task, description="[green]✓ Command executed!")
-
-        if output:
-            # Display mock output
-            panel = Panel(
-                f"[dim]$ {command}[/dim]\n\n"
-                "[green]Command executed successfully[/green]\n"
-                "[dim]Exit code: 0[/dim]",
-                title="📤 Command Output",
-                border_style="blue",
-                box=box.ROUNDED,
-            )
-            console.print(panel)
-
-        print_success("Command executed successfully")
-
+        # Run async operation
+        result = asyncio.run(_execute_command_real(
+            command, session, timeout, server, output
+        ))
+        
+        if not result:
+            print_error("Command timed out or failed")
+            sys.exit(1)
+            
     except Exception as e:
         print_error(f"Execution failed: {str(e)}")
         sys.exit(1)
+
+
+async def _execute_command_real(
+    command: str,
+    session_id: str,
+    timeout: int,
+    server_url: str,
+    show_output: bool
+) -> Optional[dict]:
+    """Execute command via C2 server."""
+    exec_mode = "synchronous"
+    print_info(f"Executing command ({exec_mode}) on session [cyan]{session_id[:8]}...[/cyan]")
+    
+    # Create client
+    client = C2Client(server_url=server_url)
+    
+    # Check server health
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=True
+    ) as progress:
+        task = progress.add_task("Checking server...", total=None)
+        
+        is_healthy = await client.health_check()
+        
+        if not is_healthy:
+            progress.stop()
+            print_error(
+                "[red]✗[/red] C2 server is not running!\n\n"
+                "Start the server with: [cyan]phantom server[/cyan]"
+            )
+            sys.exit(1)
+        
+        progress.update(task, description="[green]✓ Server connected")
+    
+    # Queue command
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("[cyan]Executing command...", total=None)
+        
+        try:
+            # Queue the command
+            response = await client.queue_command(session_id, command, "execute")
+            task_id = response.get("task_id")
+            
+            if not task_id:
+                raise Exception("No task ID returned")
+            
+            # Wait for result
+            result = await client.get_result(session_id, task_id, timeout)
+            
+            if not result:
+                progress.update(task, description="[red]✗ Command timed out")
+                return None
+            
+            progress.update(task, description="[green]✓ Command executed!")
+            
+        except Exception as e:
+            progress.stop()
+            raise e
+    
+    # Display output
+    if show_output or True:  # Always show output for real commands
+        exit_code = result.get("exit_code", 0)
+        output_text = result.get("output", "")
+        error_text = result.get("error", "")
+        
+        status_icon = "[green]✓[/green]" if exit_code == 0 else "[red]✗[/red]"
+        status_text = "SUCCESS" if exit_code == 0 else "FAILED"
+        
+        panel_content = (
+            f"[dim]$ {command}[/dim]\n\n"
+            f"{status_icon} [bold]{status_text}[/bold]\n"
+            f"[dim]Exit code: {exit_code}[/dim]"
+        )
+        
+        if output_text:
+            panel_content += f"\n\n[green]Output:[/green]\n{output_text.strip()}"
+        
+        if error_text:
+            panel_content += f"\n\n[red]Error:[/red]\n{error_text.strip()}"
+        
+        panel = Panel(
+            panel_content,
+            title="📤 Command Output",
+            border_style="blue" if exit_code == 0 else "red",
+            box=box.ROUNDED,
+        )
+        console.print(panel)
+    
+    if result.get("exit_code", 0) == 0:
+        print_success("Command executed successfully")
+    else:
+        print_error(f"Command failed with exit code {result.get('exit_code')}")
+    
+    return result
 
 
 @main.command()

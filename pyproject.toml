@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "c2-phantom"
+version = "1.0.0"
+description = "Advanced C2 Framework for Red Team Training with Traffic Obfuscation"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "C2 Phantom Team", email = "phantom@redteam.local"}
+]
+keywords = ["c2", "red-team", "security", "penetration-testing", "cli"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "click>=8.1.7",
+    "rich>=13.7.0",
+    "cryptography>=41.0.7",
+    "pyyaml>=6.0.1",
+    "pydantic>=2.5.3",
+    "aiohttp>=3.9.1",
+    "websockets>=12.0",
+    "dnspython>=2.4.2",
+    "requests>=2.31.0",
+    "psutil>=5.9.6",
+    "keyring>=24.3.0",
+    "python-dateutil>=2.8.2",
+    "tqdm>=4.66.1",
+    "prompt-toolkit>=3.0.43",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.1",
+    "mypy>=1.7.1",
+    "flake8>=6.1.0",
+    "isort>=5.13.2",
+]
+
+[project.scripts]
+c2-phantom = "c2_phantom.cli:main"
+phantom = "c2_phantom.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/redteam/c2-phantom"
+Documentation = "https://c2-phantom.readthedocs.io"
+Repository = "https://github.com/redteam/c2-phantom"
+Issues = "https://github.com/redteam/c2-phantom/issues"
+
+[tool.setuptools]
+packages = ["c2_phantom"]
+
+[tool.setuptools.package-data]
+c2_phantom = ["py.typed", "data/*", "plugins/*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=c2_phantom --cov-report=html --cov-report=term"
+asyncio_mode = "auto"

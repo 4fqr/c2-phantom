@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  c2-phantom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: c2-phantom:latest
+    container_name: c2-phantom
+    restart: unless-stopped
+    
+    environment:
+      - PHANTOM_HOME=/home/phantom/.phantom
+      - PYTHONUNBUFFERED=1
+    
+    volumes:
+      - phantom-config:/home/phantom/.phantom
+      - phantom-logs:/home/phantom/.phantom/logs
+      - phantom-sessions:/home/phantom/.phantom/sessions
+    
+    networks:
+      - phantom-network
+    
+    ports:
+      - "443:443"
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+volumes:
+  phantom-config:
+    driver: local
+  phantom-logs:
+    driver: local
+  phantom-sessions:
+    driver: local
+
+networks:
+  phantom-network:
+    driver: bridge

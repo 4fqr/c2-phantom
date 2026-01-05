@@ -52,9 +52,7 @@ class AESEncryption:
         except Exception as e:
             raise EncryptionError(f"AES encryption failed: {str(e)}")
 
-    def decrypt(
-        self, ciphertext: bytes, nonce: bytes, associated_data: Optional[bytes] = None
-    ) -> bytes:
+    def decrypt(self, ciphertext: bytes, nonce: bytes, associated_data: Optional[bytes] = None) -> bytes:
         """
         Decrypt AES-256-GCM encrypted data.
 
@@ -99,9 +97,7 @@ class RSAEncryption:
             key_size: RSA key size in bits (default 4096)
         """
         self.key_size = key_size
-        self.private_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=key_size, backend=default_backend()
-        )
+        self.private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size, backend=default_backend())
         self.public_key = self.private_key.public_key()
 
     def encrypt(self, plaintext: bytes) -> bytes:
@@ -173,9 +169,7 @@ class RSAEncryption:
             PEM-encoded private key
         """
         encryption_algorithm = (
-            serialization.BestAvailableEncryption(password)
-            if password
-            else serialization.NoEncryption()
+            serialization.BestAvailableEncryption(password) if password else serialization.NoEncryption()
         )
 
         return self.private_key.private_bytes(

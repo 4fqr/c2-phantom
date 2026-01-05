@@ -197,12 +197,14 @@ class ProxyChain:
             if parsed.scheme in ["socks4", "socks5"]:
                 proxy_type = parsed.scheme
 
-            proxies.append(ProxyConfig(
-                url=url,
-                username=parsed.username,
-                password=parsed.password,
-                proxy_type=proxy_type,
-            ))
+            proxies.append(
+                ProxyConfig(
+                    url=url,
+                    username=parsed.username,
+                    password=parsed.password,
+                    proxy_type=proxy_type,
+                )
+            )
 
         return cls(proxies)
 

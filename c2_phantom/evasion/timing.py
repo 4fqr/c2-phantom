@@ -53,6 +53,7 @@ class TimingObfuscator:
         """Apply jitter delay synchronously."""
         if self.enable_random_delays:
             import time
+
             delay = self.calculate_jitter()
             time.sleep(delay)
 
@@ -101,7 +102,7 @@ class TimingObfuscator:
             Backoff delay in seconds
         """
         # Exponential backoff
-        delay = min(base_delay * (2 ** attempt), max_delay)
+        delay = min(base_delay * (2**attempt), max_delay)
 
         # Add jitter
         if self.enable_random_delays:

@@ -86,11 +86,7 @@ class PluginLoader:
 
             # Find plugin classes
             for name, obj in inspect.getmembers(module):
-                if (
-                    inspect.isclass(obj)
-                    and issubclass(obj, BasePlugin)
-                    and obj != BasePlugin
-                ):
+                if inspect.isclass(obj) and issubclass(obj, BasePlugin) and obj != BasePlugin:
                     self.plugin_classes[obj.name] = obj
 
         except Exception as e:

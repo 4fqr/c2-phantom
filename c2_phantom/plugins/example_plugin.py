@@ -21,23 +21,11 @@ class ExamplePlugin(CommandPlugin):
         self.logger.info(f"Initializing {self.name} plugin v{self.version}")
 
         # Register commands
-        self.register_command(
-            "hello",
-            self.hello_command,
-            "Greet someone by name"
-        )
+        self.register_command("hello", self.hello_command, "Greet someone by name")
 
-        self.register_command(
-            "echo",
-            self.echo_command,
-            "Echo a message back to the user"
-        )
+        self.register_command("echo", self.echo_command, "Echo a message back to the user")
 
-        self.register_command(
-            "info",
-            self.info_command,
-            "Display plugin information"
-        )
+        self.register_command("info", self.info_command, "Display plugin information")
 
         self.logger.info(f"Registered {len(self.commands)} commands")
 

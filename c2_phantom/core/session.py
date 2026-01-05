@@ -103,9 +103,7 @@ class SessionManager:
         Returns:
             New Session instance
         """
-        session = Session(
-            target=target, protocol=protocol, encryption=encryption, metadata=metadata or {}
-        )
+        session = Session(target=target, protocol=protocol, encryption=encryption, metadata=metadata or {})
         self.sessions[session.id] = session
         self.save_session(session)
         return session
@@ -122,9 +120,7 @@ class SessionManager:
         """
         return self.sessions.get(session_id)
 
-    def list_sessions(
-        self, status: Optional[SessionStatus] = None
-    ) -> List[Session]:
+    def list_sessions(self, status: Optional[SessionStatus] = None) -> List[Session]:
         """
         List sessions, optionally filtered by status.
 

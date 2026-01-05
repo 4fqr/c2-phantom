@@ -54,9 +54,7 @@ class PersistenceManager:
         except Exception as e:
             raise PersistenceError(f"Failed to create scheduled task: {str(e)}")
 
-    def _create_windows_scheduled_task(
-        self, task_name: str, command: str, interval: str, time: str
-    ) -> bool:
+    def _create_windows_scheduled_task(self, task_name: str, command: str, interval: str, time: str) -> bool:
         """Create Windows scheduled task using schtasks."""
         try:
             # Build schtasks command
@@ -94,9 +92,7 @@ class PersistenceManager:
         except subprocess.CalledProcessError as e:
             raise PersistenceError(f"schtasks failed: {e.stderr}")
 
-    def _create_unix_cron_job(
-        self, task_name: str, command: str, interval: str, time: str
-    ) -> bool:
+    def _create_unix_cron_job(self, task_name: str, command: str, interval: str, time: str) -> bool:
         """Create cron job on Linux/macOS."""
         try:
             # Parse time
@@ -336,10 +332,7 @@ WantedBy=multi-user.target
                 current_crontab = result.stdout
 
                 # Filter out the task
-                new_crontab = "\n".join(
-                    line for line in current_crontab.split("\n")
-                    if task_name not in line
-                )
+                new_crontab = "\n".join(line for line in current_crontab.split("\n") if task_name not in line)
 
                 # Write new crontab
                 process = subprocess.Popen(

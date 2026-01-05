@@ -125,7 +125,7 @@ def init(config: Optional[str], force: bool) -> None:
         sys.exit(1)
 
 
-# NOTE: The 'connect' command is disabled. 
+# NOTE: The 'connect' command is disabled.
 # Agents self-register when they start using: python -m c2_phantom.agent --server http://localhost:8443
 # Use 'phantom list' to see registered sessions after agents connect.
 
@@ -201,10 +201,12 @@ def list(status: str, output_format: str, verbose: bool) -> None:
                 ]
 
                 if verbose:
-                    row.extend([
-                        session.created_at.strftime("%Y-%m-%d %H:%M"),
-                        session.last_seen.strftime("%Y-%m-%d %H:%M"),
-                    ])
+                    row.extend(
+                        [
+                            session.created_at.strftime("%Y-%m-%d %H:%M"),
+                            session.last_seen.strftime("%Y-%m-%d %H:%M"),
+                        ]
+                    )
 
                 table.add_row(*row)
 
@@ -212,11 +214,13 @@ def list(status: str, output_format: str, verbose: bool) -> None:
 
         elif output_format == "json":
             import json
+
             data = [s.to_dict() for s in sessions]
             console.print_json(json.dumps(data, indent=2))
 
         elif output_format == "yaml":
             import yaml
+
             data = [s.to_dict() for s in sessions]
             console.print(yaml.dump(data, default_flow_style=False))
 
@@ -246,10 +250,8 @@ def upload(
         print_info(f"Uploading [cyan]{file_path.name}[/cyan] ({file_size:,} bytes)...")
 
         # Run async upload
-        result = asyncio.run(_upload_file_real(
-            local_path, remote_path, session, server, timeout
-        ))
-        
+        result = asyncio.run(_upload_file_real(local_path, remote_path, session, server, timeout))
+
         if result and result.get("status") == "success":
             print_success(f"File uploaded successfully to [cyan]{remote_path}[/cyan]")
         else:
@@ -263,27 +265,23 @@ def upload(
 
 
 async def _upload_file_real(
-    local_path: str,
-    remote_path: str,
-    session_id: str,
-    server_url: str,
-    timeout: int
+    local_path: str, remote_path: str, session_id: str, server_url: str, timeout: int
 ) -> Optional[dict]:
     """Upload file via C2 server."""
     from pathlib import Path
     import base64
-    
+
     client = C2Client(server_url=server_url)
-    
+
     # Check server
     if not await client.health_check():
         print_error("C2 server is not running!")
         sys.exit(1)
-    
+
     # Read and encode file
     file_path = Path(local_path)
     file_size = file_path.stat().st_size
-    
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -291,22 +289,22 @@ async def _upload_file_real(
         console=console,
     ) as progress:
         task = progress.add_task("Reading file...", total=2)
-        
+
         with open(file_path, "rb") as f:
             file_data = f.read()
-        
+
         progress.update(task, advance=1, description="Encoding...")
         encoded_data = base64.b64encode(file_data).decode()
         progress.update(task, advance=1, description="Uploading...")
-    
+
     # Upload via client
     try:
         response = await client.upload_file(session_id, local_path, remote_path)
         task_id = response.get("task_id")
-        
+
         if not task_id:
             return {"status": "error", "error": "No task ID returned"}
-        
+
         # Wait for result
         with Progress(
             SpinnerColumn(),
@@ -315,11 +313,11 @@ async def _upload_file_real(
         ) as progress:
             task = progress.add_task("Waiting for agent to write file...", total=None)
             result = await client.get_result(session_id, task_id, timeout)
-            
+
             if result:
                 progress.update(task, description="✓ Upload complete")
             return result
-            
+
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
@@ -335,54 +333,44 @@ def execute(command: str, session: str, output: bool, timeout: int, is_async: bo
     """Execute commands on target systems."""
     try:
         # Run async operation
-        result = asyncio.run(_execute_command_real(
-            command, session, timeout, server, output
-        ))
-        
+        result = asyncio.run(_execute_command_real(command, session, timeout, server, output))
+
         if not result:
             print_error("Command timed out or failed")
             sys.exit(1)
-            
+
     except Exception as e:
         print_error(f"Execution failed: {str(e)}")
         sys.exit(1)
 
 
 async def _execute_command_real(
-    command: str,
-    session_id: str,
-    timeout: int,
-    server_url: str,
-    show_output: bool
+    command: str, session_id: str, timeout: int, server_url: str, show_output: bool
 ) -> Optional[dict]:
     """Execute command via C2 server."""
     exec_mode = "synchronous"
     print_info(f"Executing command ({exec_mode}) on session [cyan]{session_id[:8]}...[/cyan]")
-    
+
     # Create client
     client = C2Client(server_url=server_url)
-    
+
     # Check server health
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console, transient=True
     ) as progress:
         task = progress.add_task("Checking server...", total=None)
-        
+
         is_healthy = await client.health_check()
-        
+
         if not is_healthy:
             progress.stop()
             print_error(
-                "[red]✗[/red] C2 server is not running!\n\n"
-                "Start the server with: [cyan]phantom server[/cyan]"
+                "[red]✗[/red] C2 server is not running!\n\n" "Start the server with: [cyan]phantom server[/cyan]"
             )
             sys.exit(1)
-        
+
         progress.update(task, description="[green]✓ Server connected")
-    
+
     # Queue command
     with Progress(
         SpinnerColumn(),
@@ -390,49 +378,49 @@ async def _execute_command_real(
         console=console,
     ) as progress:
         task = progress.add_task("[cyan]Executing command...", total=None)
-        
+
         try:
             # Queue the command
             response = await client.queue_command(session_id, command, "execute")
             task_id = response.get("task_id")
-            
+
             if not task_id:
                 raise Exception("No task ID returned")
-            
+
             # Wait for result
             result = await client.get_result(session_id, task_id, timeout)
-            
+
             if not result:
                 progress.update(task, description="[red]✗ Command timed out")
                 return None
-            
+
             progress.update(task, description="[green]✓ Command executed!")
-            
+
         except Exception as e:
             progress.stop()
             raise e
-    
+
     # Display output
     if show_output or True:  # Always show output for real commands
         exit_code = result.get("exit_code", 0)
         output_text = result.get("output", "")
         error_text = result.get("error", "")
-        
+
         status_icon = "[green]✓[/green]" if exit_code == 0 else "[red]✗[/red]"
         status_text = "SUCCESS" if exit_code == 0 else "FAILED"
-        
+
         panel_content = (
             f"[dim]$ {command}[/dim]\n\n"
             f"{status_icon} [bold]{status_text}[/bold]\n"
             f"[dim]Exit code: {exit_code}[/dim]"
         )
-        
+
         if output_text:
             panel_content += f"\n\n[green]Output:[/green]\n{output_text.strip()}"
-        
+
         if error_text:
             panel_content += f"\n\n[red]Error:[/red]\n{error_text.strip()}"
-        
+
         panel = Panel(
             panel_content,
             title="📤 Command Output",
@@ -440,12 +428,12 @@ async def _execute_command_real(
             box=box.ROUNDED,
         )
         console.print(panel)
-    
+
     if result.get("exit_code", 0) == 0:
         print_success("Command executed successfully")
     else:
         print_error(f"Command failed with exit code {result.get('exit_code')}")
-    
+
     return result
 
 
@@ -467,10 +455,8 @@ def download(
         print_info(f"Downloading [cyan]{remote_path}[/cyan]...")
 
         # Run async download
-        result = asyncio.run(_download_file_real(
-            remote_path, local_path, session, server, timeout
-        ))
-        
+        result = asyncio.run(_download_file_real(remote_path, local_path, session, server, timeout))
+
         if result and result.get("status") == "success":
             file_size = result.get("size", 0)
             print_success(f"File downloaded to [cyan]{local_path}[/cyan] ({file_size:,} bytes)")
@@ -485,23 +471,19 @@ def download(
 
 
 async def _download_file_real(
-    remote_path: str,
-    local_path: str,
-    session_id: str,
-    server_url: str,
-    timeout: int
+    remote_path: str, local_path: str, session_id: str, server_url: str, timeout: int
 ) -> Optional[dict]:
     """Download file via C2 server."""
     from pathlib import Path
     import base64
-    
+
     client = C2Client(server_url=server_url)
-    
+
     # Check server
     if not await client.health_check():
         print_error("C2 server is not running!")
         sys.exit(1)
-    
+
     # Request file download
     with Progress(
         SpinnerColumn(),
@@ -509,45 +491,41 @@ async def _download_file_real(
         console=console,
     ) as progress:
         task = progress.add_task("Requesting file...", total=None)
-        
+
         try:
             # Queue download command
             response = await client.download_file(session_id, remote_path)
             task_id = response.get("task_id")
-            
+
             if not task_id:
                 return {"status": "error", "error": "No task ID returned"}
-            
+
             progress.update(task, description="Waiting for agent...")
-            
+
             # Wait for result
             result = await client.get_result(session_id, task_id, timeout)
-            
+
             if not result or result.get("status") != "success":
                 return result or {"status": "error", "error": "Timeout"}
-            
+
             progress.update(task, description="Decoding file...")
-            
+
             # Decode and save file
             encoded_data = result.get("data")
             if not encoded_data:
                 return {"status": "error", "error": "No file data received"}
-            
+
             file_data = base64.b64decode(encoded_data)
-            
+
             # Write to disk
             Path(local_path).parent.mkdir(parents=True, exist_ok=True)
             with open(local_path, "wb") as f:
                 f.write(file_data)
-            
+
             progress.update(task, description="✓ Download complete")
-            
-            return {
-                "status": "success",
-                "size": len(file_data),
-                "path": local_path
-            }
-            
+
+            return {"status": "success", "size": len(file_data), "path": local_path}
+
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
@@ -602,12 +580,12 @@ def server(host: str, port: int, ssl_cert: Optional[str], ssl_key: Optional[str]
     """Start the C2 server to listen for agent connections."""
     try:
         from c2_phantom.network.server import C2Server
-        
+
         print_info(f"Starting C2 server on [cyan]{host}:{port}[/cyan]...")
-        
+
         # Initialize server
         c2_server = C2Server(host=host, port=port)
-        
+
         panel = Panel(
             f"[bold green]✓ C2 Server Started![/bold green]\n\n"
             f"[dim]Listen Address:[/dim] [cyan]{host}:{port}[/cyan]\n"
@@ -624,10 +602,10 @@ def server(host: str, port: int, ssl_cert: Optional[str], ssl_key: Optional[str]
             box=box.ROUNDED,
         )
         console.print(panel)
-        
+
         # Run server (blocking)
         c2_server.run()
-        
+
     except KeyboardInterrupt:
         print_info("\n[yellow]Server stopped by user[/yellow]")
     except Exception as e:
@@ -644,17 +622,17 @@ def send(session_id: str, command: str, timeout: int) -> None:
     try:
         import asyncio
         from c2_phantom.network.server import C2Server
-        
+
         print_info(f"Sending command to session [cyan]{session_id}[/cyan]...")
-        
+
         async def send_command():
             # This would need the running server instance
             # For now, we'll document that this needs the server running
             print_warning("This command requires a running C2 server instance")
             print_info("Use 'phantom server' to start the server first")
-        
+
         asyncio.run(send_command())
-        
+
     except Exception as e:
         print_error(f"Failed to send command: {str(e)}")
         sys.exit(1)

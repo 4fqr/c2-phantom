@@ -246,11 +246,13 @@ class WebSocketChannel:
                     sequence += 1
 
                 # Send completion marker
-                await self.send({
-                    "type": "file_complete",
-                    "file_path": file_path,
-                    "total_chunks": sequence,
-                })
+                await self.send(
+                    {
+                        "type": "file_complete",
+                        "file_path": file_path,
+                        "total_chunks": sequence,
+                    }
+                )
 
         except FileNotFoundError:
             raise NetworkError(f"File not found: {file_path}")

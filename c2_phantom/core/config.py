@@ -33,9 +33,7 @@ class EncryptionConfig(BaseModel):
 class NetworkConfig(BaseModel):
     """Network configuration."""
 
-    protocols: List[str] = Field(
-        default_factory=lambda: ["https", "dns", "websocket"], description="Enabled protocols"
-    )
+    protocols: List[str] = Field(default_factory=lambda: ["https", "dns", "websocket"], description="Enabled protocols")
     user_agents: List[str] = Field(
         default_factory=lambda: [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -53,9 +51,7 @@ class EvasionConfig(BaseModel):
 
     domain_fronting: bool = Field(default=True, description="Enable domain fronting")
     payload_fragmentation: bool = Field(default=True, description="Enable payload fragmentation")
-    protocol_fingerprinting_evasion: bool = Field(
-        default=True, description="Enable protocol fingerprinting evasion"
-    )
+    protocol_fingerprinting_evasion: bool = Field(default=True, description="Enable protocol fingerprinting evasion")
 
 
 class LoggingConfig(BaseModel):

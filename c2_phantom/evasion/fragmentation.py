@@ -90,9 +90,7 @@ class PayloadFragmenter:
         # Verify sequence
         expected_total = sorted_fragments[0].total_fragments
         if len(sorted_fragments) != expected_total:
-            raise ValueError(
-                f"Incomplete fragments: expected {expected_total}, got {len(sorted_fragments)}"
-            )
+            raise ValueError(f"Incomplete fragments: expected {expected_total}, got {len(sorted_fragments)}")
 
         # Verify checksums and reassemble
         payload_parts = []

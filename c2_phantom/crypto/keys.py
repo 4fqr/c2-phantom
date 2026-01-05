@@ -141,18 +141,31 @@ class KeyManager:
             use_keyring: Use system keyring for secure storage
         """
         try:
+            keyring_success = False
+            
             if use_keyring:
-                # Store private key in system keyring
-                keyring.set_password(
-                    self.SERVICE_NAME, f"{name}_private", keypair.private_key.decode()
-                )
+                # Try to store private key in system keyring
+                try:
+                    keyring.set_password(
+                        self.SERVICE_NAME, f"{name}_private", keypair.private_key.decode()
+                    )
+                    keyring_success = True
+                except Exception as keyring_error:
+                    # Keyring failed, fall back to file storage
+                    print(f"Warning: Keyring storage failed ({keyring_error}), using file-based storage")
+                    keyring_success = False
 
             # Store public key and metadata to file
             metadata = {
                 "algorithm": keypair.algorithm,
                 "key_size": keypair.key_size,
                 "public_key": keypair.public_key.decode(),
+                "keyring_storage": keyring_success,
             }
+            
+            # If keyring failed or not used, store private key in metadata (with warning)
+            if not keyring_success:
+                metadata["private_key"] = keypair.private_key.decode()
 
             key_file = self.storage_path / f"{name}.json"
             with open(key_file, "w", encoding="utf-8") as f:
@@ -180,13 +193,26 @@ class KeyManager:
             with open(key_file, "r", encoding="utf-8") as f:
                 metadata = json.load(f)
 
-            if use_keyring:
-                private_key_str = keyring.get_password(self.SERVICE_NAME, f"{name}_private")
-                if private_key_str is None:
-                    raise EncryptionError(f"Private key for '{name}' not found in keyring")
-                private_key = private_key_str.encode()
+            # Check if key was stored in keyring
+            keyring_storage = metadata.get("keyring_storage", True)
+            
+            if use_keyring and keyring_storage:
+                try:
+                    private_key_str = keyring.get_password(self.SERVICE_NAME, f"{name}_private")
+                    if private_key_str is None:
+                        # Fallback to file storage
+                        private_key = metadata.get("private_key", "").encode()
+                        if not private_key:
+                            raise EncryptionError(f"Private key for '{name}' not found")
+                    else:
+                        private_key = private_key_str.encode()
+                except Exception:
+                    # Keyring failed, try file storage
+                    private_key = metadata.get("private_key", "").encode()
+                    if not private_key:
+                        raise EncryptionError(f"Private key for '{name}' not found")
             else:
-                # If not using keyring, private key should be in metadata
+                # Load from file storage
                 private_key = metadata.get("private_key", "").encode()
                 if not private_key:
                     raise EncryptionError(f"Private key for '{name}' not found")
@@ -211,10 +237,16 @@ class KeyManager:
         """
         try:
             if use_keyring:
-                # Store in system keyring as hex string
-                keyring.set_password(self.SERVICE_NAME, f"{name}_aes", key.hex())
+                # Try to store in system keyring as hex string
+                try:
+                    keyring.set_password(self.SERVICE_NAME, f"{name}_aes", key.hex())
+                except Exception:
+                    # Keyring failed, fall back to file storage
+                    key_file = self.storage_path / f"{name}_aes.key"
+                    with open(key_file, "wb") as f:
+                        f.write(key)
             else:
-                # Store to file (less secure)
+                # Store to file
                 key_file = self.storage_path / f"{name}_aes.key"
                 with open(key_file, "wb") as f:
                     f.write(key)
@@ -234,10 +266,19 @@ class KeyManager:
         """
         try:
             if use_keyring:
-                key_hex = keyring.get_password(self.SERVICE_NAME, f"{name}_aes")
-                if key_hex is None:
-                    raise EncryptionError(f"AES key '{name}' not found in keyring")
-                return bytes.fromhex(key_hex)
+                try:
+                    key_hex = keyring.get_password(self.SERVICE_NAME, f"{name}_aes")
+                    if key_hex is not None:
+                        return bytes.fromhex(key_hex)
+                except Exception:
+                    pass
+                
+                # Fallback to file storage
+                key_file = self.storage_path / f"{name}_aes.key"
+                if not key_file.exists():
+                    raise EncryptionError(f"AES key '{name}' not found")
+                with open(key_file, "rb") as f:
+                    return f.read()
             else:
                 key_file = self.storage_path / f"{name}_aes.key"
                 if not key_file.exists():

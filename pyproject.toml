@@ -33,6 +33,7 @@ dependencies = [
     "pyyaml>=6.0.1",
     "pydantic>=2.5.3",
     "aiohttp>=3.9.1",
+    "aiohttp-socks>=0.8.4",
     "websockets>=12.0",
     "dnspython>=2.4.2",
     "requests>=2.31.0",
@@ -71,13 +72,13 @@ packages = ["c2_phantom"]
 c2_phantom = ["py.typed", "data/*", "plugins/*"]
 
 [tool.black]
-line-length = 100
+line-length = 120
 target-version = ['py39', 'py310', 'py311', 'py312']
 include = '\.pyi?$'
 
 [tool.isort]
 profile = "black"
-line_length = 100
+line_length = 120
 
 [tool.mypy]
 python_version = "3.9"

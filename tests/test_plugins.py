@@ -53,7 +53,23 @@ class TestCommandPlugin:
 
     def test_register_command(self):
         """Test command registration."""
-        plugin = CommandPlugin()
+
+        class ConcreteCommandPlugin(CommandPlugin):
+            """Concrete implementation for testing."""
+
+            name = "test_command_plugin"
+            version = "1.0.0"
+            description = "Test command plugin"
+
+            def initialize(self) -> None:
+                """Initialize plugin."""
+                pass
+
+            def cleanup(self) -> None:
+                """Cleanup plugin."""
+                pass
+
+        plugin = ConcreteCommandPlugin()
 
         def test_handler():
             return "test"

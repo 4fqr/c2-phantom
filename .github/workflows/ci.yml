@@ -37,7 +37,7 @@ jobs:
 
     - name: Format check with black
       run: |
-        black --check c2_phantom
+        black --check --line-length 120 c2_phantom
 
     - name: Type check with mypy
       run: |

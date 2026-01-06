@@ -42,7 +42,7 @@ class C2Client:
             self.anonymous_client = AnonymousClient(
                 proxies=proxy_config.get("proxies", []),
                 use_tor=proxy_config.get("use_tor", False),
-                rotate_ua=proxy_config.get("rotate_ua", False),
+                rotate_user_agent=proxy_config.get("rotate_user_agent", False),
             )
 
     async def health_check(self) -> bool:

@@ -68,7 +68,7 @@ class C2Agent:
                 self.anonymous_client = AnonymousClient(
                     proxies=self.proxy_config.get("proxies"),
                     use_tor=self.proxy_config.get("use_tor", False),
-                    rotate_user_agent=self.proxy_config.get("rotate_ua", True),
+                    rotate_user_agent=self.proxy_config.get("rotate_user_agent", True),
                 )
                 logger.info("[OPSEC] Anonymous client initialized")
             except ImportError:
@@ -470,7 +470,7 @@ def main():
         proxy_config = {
             "proxies": proxies,
             "use_tor": args.tor,
-            "rotate_ua": args.rotate_ua or len(proxies) > 0,
+            "rotate_user_agent": args.rotate_ua or len(proxies) > 0,
         }
 
     agent = C2Agent(args.server, args.beacon, args.jitter, enable_opsec=not args.no_opsec, proxy_config=proxy_config)

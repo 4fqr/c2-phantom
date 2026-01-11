@@ -1,32 +1,35 @@
 # C2-Phantom
 
-> **Enterprise-Grade Command & Control Framework for Professional Penetration Testing**
+> **⚡ Zero-Setup Command & Control Framework | 🛡️ Production Security | 🚀 10,000+ Agents**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/4fqr/c2-phantom)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Go 1.21+](https://img.shields.io/badge/go-1.21+-00ADD8.svg)](https://golang.org/)
+[![Rust 1.70+](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/4fqr/c2-phantom)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
 ---
 
 ## 🎯 What is C2-Phantom?
 
-C2-Phantom is a next-generation command and control framework architected for **enterprise-scale penetration testing** and **red team operations**. Built from the ground up with a multi-language architecture, it combines Python's flexibility, C's raw performance, Rust's memory safety, and Go's concurrency to deliver unmatched operational capability.
+C2-Phantom is a **professional-grade Command & Control framework** designed for authorized security testing, red team operations, and cybersecurity education. Built with a multi-language architecture combining C, Rust, Go, and Python, it delivers enterprise-level performance, security, and evasion capabilities.
 
-### Built For
+### 📚 Complete Documentation Suite
 
-- **Fortune 500 Security Teams**: Comprehensive testing of enterprise defense-in-depth strategies
-- **Professional Red Teams**: Full-spectrum adversary emulation with MITRE ATT&CK coverage
-- **Penetration Testers**: Reliable, production-grade tooling for high-stakes engagements
-- **Security Researchers**: Extensible platform for offensive security R&D
+- **[QUICKSTART.md](QUICKSTART.md)** - 60-second deployment guide (Windows/Linux/Docker)
+- **[SECURITY.md](SECURITY.md)** - Enterprise hardening, TLS, encryption, compliance
+- **[API.md](API.md)** - Complete REST API reference with examples
+- **[INSTALL.md](INSTALL.md)** - Detailed installation for all platforms
+- **[FEATURES.md](FEATURES.md)** - Comprehensive feature specification
 
----
+### 🏆 Why Choose C2-Phantom?
 
-## ⚡ Why C2-Phantom?
-
-### True Multi-Language Architecture
-
-Unlike monolithic C2 frameworks, C2-Phantom leverages the right tool for each job:
+✅ **Zero-Setup Windows Deployment** - No PATH issues, works immediately after `git clone`  
+✅ **Production Security** - TLS 1.3, AES-256-GCM, rate limiting, audit logging  
+✅ **Enterprise Scale** - 10,000+ concurrent agents with sub-50ms latency  
+✅ **Advanced Evasion** - Direct syscalls, domain fronting, DNS tunneling  
+✅ **Multi-Language** - C (performance) + Rust (safety) + Go (concurrency) + Python (flexibility)
 
 - **Python**: Orchestration layer providing unified control and automation
 - **C**: Performance-critical Windows internals, direct syscalls, and EDR evasion

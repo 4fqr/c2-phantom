@@ -18,13 +18,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "🔮 Starting C2-Phantom Server..." -ForegroundColor Cyan
+Write-Host "[*] Starting C2-Phantom Server..." -ForegroundColor Cyan
 Write-Host ""
 
 # Check if server binary exists
 $ServerPath = Join-Path $PSScriptRoot "server"
 if (-not (Test-Path $ServerPath)) {
-    Write-Host "❌ Server directory not found: $ServerPath" -ForegroundColor Red
+    Write-Host "[!] Server directory not found: $ServerPath" -ForegroundColor Red
     exit 1
 }
 
@@ -47,7 +47,7 @@ Write-Host ""
 # Build if needed
 $BinaryPath = Join-Path $ServerPath "c2-server.exe"
 if (-not (Test-Path $BinaryPath)) {
-    Write-Host "🔨 Building Go server..." -ForegroundColor Yellow
+    Write-Host "[+] Building Go server..." -ForegroundColor Yellow
     Push-Location $ServerPath
     try {
         go build -o c2-server.exe -ldflags="-s -w" main.go
@@ -59,7 +59,7 @@ if (-not (Test-Path $BinaryPath)) {
     }
 }
 
-Write-Host "✓ Starting server..." -ForegroundColor Green
+Write-Host "[+] Starting server..." -ForegroundColor Green
 Write-Host ""
 
 # Start server

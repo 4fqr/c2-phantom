@@ -129,27 +129,47 @@ Invoke-RestMethod -Uri "http://localhost:8080/api/v1/stats" `
 
 ### ✅ Before Production
 
-- [ ] Change default API key in database
-- [ ] Enable TLS/HTTPS with valid certificates
-- [ ] Configure firewall rules
-- [ ] Use strong PostgreSQL password
-- [ ] Enable Redis password authentication
-- [ ] Review `server/main.go` rate limiting settings
-- [ ] Update `docker-compose.yml` environment variables
+**See [SECURITY.md](SECURITY.md) for complete hardening guide**
 
-### Generate TLS Certificates
+**Critical Security Steps:**
+- [ ] Change ALL default credentials in `.env`
+- [ ] Generate secure API keys: `python -c "import secrets; print(secrets.token_urlsafe(48))"`
+- [ ] Enable TLS/HTTPS with valid certificates
+- [ ] Configure IP whitelisting in `.env`
+- [ ] Enable rate limiting
+- [ ] Use strong PostgreSQL and Redis passwords
+- [ ] Configure firewall rules
+- [ ] Set up monitoring and alerting
+- [ ] Document operator identification and engagement authorization
+
+### Quick Security Setup
 
 ```powershell
-# Self-signed (development)
+# 1. Copy example configuration
+Copy-Item .env.example .env
+
+# 2. Generate secure secrets
+python -c "import secrets; print('API_KEY=' + secrets.token_urlsafe(48))"
+python -c "import secrets; print('SESSION_SECRET=' + secrets.token_hex(32))"
+python -c "import secrets; print('JWT_SECRET=' + secrets.token_hex(32))"
+
+# 3. Edit .env and paste generated values
+
+# 4. Generate TLS certificates
 openssl req -x509 -newkey rsa:4096 -keyout server.key `
     -out server.crt -days 365 -nodes `
     -subj "/CN=c2phantom.local"
 
-# Start server with TLS
-$env:TLS_CERT = "server.crt"
-$env:TLS_KEY = "server.key"
+# 5. Enable TLS in .env
+# Set: TLS_ENABLED=true
+# Set: TLS_CERT_PATH=./server.crt
+# Set: TLS_KEY_PATH=./server.key
+
+# 6. Start secured server
 .\START-SERVER.ps1
 ```
+
+**📖 Read [SECURITY.md](SECURITY.md) for comprehensive security hardening**
 
 ---
 

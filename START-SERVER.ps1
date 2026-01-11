@@ -65,7 +65,7 @@ Write-Host ""
 # Start server
 Push-Location $ServerPath
 try {
-    & ".\c2-server.exe"
+    & "./c2-server.exe"
 } finally {
     Pop-Location
 }

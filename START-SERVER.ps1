@@ -50,7 +50,7 @@ if (-not (Test-Path $BinaryPath)) {
     Write-Host "🔨 Building Go server..." -ForegroundColor Yellow
     Push-Location $ServerPath
     try {
-        go build -o "c2-server.exe" -ldflags="-s -w" main.go
+        go build -o c2-server.exe -ldflags="-s -w" main.go
         if ($LASTEXITCODE -ne 0) {
             throw "Go build failed"
         }
@@ -65,7 +65,7 @@ Write-Host ""
 # Start server
 Push-Location $ServerPath
 try {
-    & "./c2-server.exe"
+    & ./c2-server.exe
 } finally {
     Pop-Location
 }

@@ -9,11 +9,12 @@
 #>
 
 param(
-    [string]$DatabaseURL = "sqlite:c2phantom.db",
+    [string]$DatabaseURL = "memory",
     [string]$RedisURL = "",
     [int]$HTTPPort = 8080,
     [int]$HTTPSPort = 443,
-    [string]$LogLevel = "info"
+    [string]$LogLevel = "info",
+    [switch]$Rebuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,8 +49,13 @@ Write-Host "  HTTPS Port: $HTTPSPort"
 Write-Host "  Log Level: $LogLevel"
 Write-Host ""
 
-# Build if needed
+# Build if needed or forced
 $BinaryPath = Join-Path $ServerPath "c2-server.exe"
+if ($Rebuild -and (Test-Path $BinaryPath)) {
+    Write-Host "[+] Rebuilding Go server (forced)..." -ForegroundColor Yellow
+    Remove-Item $BinaryPath -Force
+}
+
 if (-not (Test-Path $BinaryPath)) {
     Write-Host "[+] Building Go server..." -ForegroundColor Yellow
     Push-Location $ServerPath
@@ -60,8 +66,9 @@ if (-not (Test-Path $BinaryPath)) {
             throw "Go mod tidy failed"
         }
         
-        # Build
-        go build -o c2-server.exe -ldflags="-s -w" main.go
+        # Build with pure Go (no CGO/gcc needed)
+        $env:CGO_ENABLED = "0"
+        go build -tags modernc_sqlite -o c2-server.exe -ldflags="-s -w" main.go
         if ($LASTEXITCODE -ne 0) {
             throw "Go build failed"
         }

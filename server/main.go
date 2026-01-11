@@ -80,7 +80,7 @@ func DefaultConfig() *ServerConfig {
 		HTTPPort:    8080,
 		HTTPSPort:   443,
 		DNSPort:     53,
-		DatabaseURL: getEnv("DATABASE_URL", "sqlite:c2phantom.db"),
+		DatabaseURL: getEnv("DATABASE_URL", "memory"),
 		RedisURL:    getEnv("REDIS_URL", ""),
 		TLSCertFile: getEnv("TLS_CERT", "server.crt"),
 		TLSKeyFile:  getEnv("TLS_KEY", "server.key"),
@@ -148,8 +148,11 @@ func (s *C2Server) initDatabase() error {
 
 	var dialector gorm.Dialector
 	
-	// Support both SQLite and PostgreSQL
-	if strings.HasPrefix(s.config.DatabaseURL, "sqlite:") {
+	// Support memory, SQLite, and PostgreSQL
+	if s.config.DatabaseURL == "memory" || s.config.DatabaseURL == "" {
+		dialector = sqlite.Open("file::memory:?cache=shared")
+		log.Println("Using in-memory database (data lost on restart)")
+	} else if strings.HasPrefix(s.config.DatabaseURL, "sqlite:") {
 		dbPath := strings.TrimPrefix(s.config.DatabaseURL, "sqlite:")
 		dialector = sqlite.Open(dbPath)
 		log.Printf("Using SQLite database: %s", dbPath)

@@ -73,14 +73,32 @@ Unlike monolithic C2 frameworks, C2-Phantom leverages the right tool for each jo
 
 Ensure you have the following installed:
 
-- **Python 3.13+**: Primary orchestration language
-- **CMake 3.15+**: C core compilation
-- **Rust 1.70+**: Agent binary builds
-- **Go 1.21+**: Server infrastructure
-- **OpenSSL**: Cryptographic operations
+- **Python 3.10+**: Primary orchestration language
+- **Go 1.21+**: Server infrastructure (required)
+- **Rust 1.70+**: Agent binary builds (optional)
+- **CMake 3.15+**: C core compilation (optional)
 
 ### Installation
 
+**Windows (PowerShell):**
+```powershell
+# Clone the repository
+git clone https://github.com/4fqr/c2-phantom.git
+cd c2-phantom
+
+# Install Python package
+pip install -e .
+
+# Build server (required)
+cd server
+go build -o c2-server.exe main.go
+cd ..
+
+# Or build everything
+.\BUILD-ALL.ps1
+```
+
+**Linux/macOS:**
 ```bash
 # Clone the repository
 git clone https://github.com/4fqr/c2-phantom.git
@@ -91,23 +109,42 @@ make all
 
 # Install Python package
 pip install -e .
-
-# Initialize database (first time only)
-c2-phantom init
 ```
 
 ### Launch Your First Session
 
-```bash
-# Start the C2 server
-c2-phantom server --host 0.0.0.0 --port 443 --tls
+**Windows:**
+```powershell
+# Start the Go C2 server
+.\START-SERVER.ps1
+# Or manually: cd server; .\c2-server.exe
 
-# Generate agent payload
-c2-phantom generate --format exe --output agent.exe --host your-c2-server.com
+# Initialize CLI (first time)
+python phantom.py init
 
-# Interactive CLI
-c2-phantom cli
+# List agents
+python phantom.py list
+
+# Execute commands
+python phantom.py execute "whoami" --session <SESSION_ID> --server http://localhost:8080
 ```
+
+**Linux/macOS:**
+```bash
+# Start the Go C2 server
+cd server && ./c2-server
+
+# Initialize CLI (first time)
+c2-phantom init
+
+# List agents
+c2-phantom list
+
+# Execute commands
+c2-phantom execute "whoami" --session <SESSION_ID> --server http://localhost:8080
+```
+
+**🎯 See [QUICKSTART.md](QUICKSTART.md) for complete step-by-step guide**
 
 ---
 

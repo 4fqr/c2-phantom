@@ -18,9 +18,10 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	
+	sqlite "github.com/glebarez/sqlite"
 )
 
 // ============================================================================
@@ -147,7 +148,7 @@ func (s *C2Server) initDatabase() error {
 	}
 
 	var dialector gorm.Dialector
-	
+
 	// Support memory, SQLite, and PostgreSQL
 	if s.config.DatabaseURL == "memory" || s.config.DatabaseURL == "" {
 		dialector = sqlite.Open("file::memory:?cache=shared")

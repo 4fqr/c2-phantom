@@ -68,7 +68,7 @@ if (-not (Test-Path $BinaryPath)) {
         
         # Build with pure Go (no CGO/gcc needed)
         $env:CGO_ENABLED = "0"
-        go build -tags modernc_sqlite -o c2-server.exe -ldflags="-s -w" main.go
+        go build -o c2-server.exe -ldflags="-s -w" main.go
         if ($LASTEXITCODE -ne 0) {
             throw "Go build failed"
         }

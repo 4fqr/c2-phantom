@@ -50,10 +50,10 @@ if (-not (Test-Path $BinaryPath)) {
     Write-Host "[+] Building Go server..." -ForegroundColor Yellow
     Push-Location $ServerPath
     try {
-        # Download dependencies first
-        go mod download
+        # Sync dependencies and update go.sum
+        go mod tidy
         if ($LASTEXITCODE -ne 0) {
-            throw "Go mod download failed"
+            throw "Go mod tidy failed"
         }
         
         # Build

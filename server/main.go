@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -78,8 +80,8 @@ func DefaultConfig() *ServerConfig {
 		HTTPPort:    8080,
 		HTTPSPort:   443,
 		DNSPort:     53,
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/c2phantom?sslmode=disable"),
-		RedisURL:    getEnv("REDIS_URL", "localhost:6379"),
+		DatabaseURL: getEnv("DATABASE_URL", "sqlite:c2phantom.db"),
+		RedisURL:    getEnv("REDIS_URL", ""),
 		TLSCertFile: getEnv("TLS_CERT", "server.crt"),
 		TLSKeyFile:  getEnv("TLS_KEY", "server.key"),
 		MaxAgents:   10000,
@@ -144,7 +146,19 @@ func (s *C2Server) initDatabase() error {
 		logLevel = logger.Info
 	}
 
-	db, err := gorm.Open(postgres.Open(s.config.DatabaseURL), &gorm.Config{
+	var dialector gorm.Dialector
+	
+	// Support both SQLite and PostgreSQL
+	if strings.HasPrefix(s.config.DatabaseURL, "sqlite:") {
+		dbPath := strings.TrimPrefix(s.config.DatabaseURL, "sqlite:")
+		dialector = sqlite.Open(dbPath)
+		log.Printf("Using SQLite database: %s", dbPath)
+	} else {
+		dialector = postgres.Open(s.config.DatabaseURL)
+		log.Println("Using PostgreSQL database")
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
@@ -162,6 +176,12 @@ func (s *C2Server) initDatabase() error {
 }
 
 func (s *C2Server) initRedis() error {
+	// Skip Redis if URL is empty
+	if s.config.RedisURL == "" {
+		log.Println("⚠ Redis disabled - using in-memory queues")
+		return nil
+	}
+
 	s.redis = redis.NewClient(&redis.Options{
 		Addr:     s.config.RedisURL,
 		Password: "",
@@ -172,7 +192,9 @@ func (s *C2Server) initRedis() error {
 	defer cancel()
 
 	if err := s.redis.Ping(ctx).Err(); err != nil {
-		return err
+		log.Printf("⚠ Redis connection failed: %v - using in-memory queues", err)
+		s.redis = nil // Disable Redis, use in-memory
+		return nil
 	}
 
 	log.Println("✓ Redis connected")

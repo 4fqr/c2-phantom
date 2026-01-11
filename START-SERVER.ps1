@@ -9,8 +9,8 @@
 #>
 
 param(
-    [string]$DatabaseURL = "postgres://postgres:postgres@localhost:5432/c2phantom",
-    [string]$RedisURL = "localhost:6379",
+    [string]$DatabaseURL = "sqlite:c2phantom.db",
+    [string]$RedisURL = "",
     [int]$HTTPPort = 8080,
     [int]$HTTPSPort = 443,
     [string]$LogLevel = "info"
@@ -38,7 +38,11 @@ $env:MAX_AGENTS = "10000"
 
 Write-Host "Configuration:" -ForegroundColor Green
 Write-Host "  Database: $DatabaseURL"
-Write-Host "  Redis: $RedisURL"
+if ($RedisURL -ne "") {
+    Write-Host "  Redis: $RedisURL"
+} else {
+    Write-Host "  Redis: disabled (using in-memory queues)"
+}
 Write-Host "  HTTP Port: $HTTPPort"
 Write-Host "  HTTPS Port: $HTTPSPort"
 Write-Host "  Log Level: $LogLevel"

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import logging
 import asyncio
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -158,34 +159,45 @@ class RustAgentBridge:
 class GoServerClient:
     """gRPC client for Go C2 server."""
 
-    def __init__(self, server_url: str = "localhost:50051"):
+    def __init__(self, address: str = "localhost:9090"):
         """Initialize gRPC client to Go server."""
+        self.address = address
         try:
             import grpc
-            from c2_phantom.proto import c2_pb2, c2_pb2_grpc
+            try:
+                from c2_phantom.proto import c2_pb2, c2_pb2_grpc
+                self.channel = grpc.insecure_channel(address)
+                self.stub = c2_pb2_grpc.C2ServerStub(self.channel)
+                logger.info(f"Connected to Go server: {address}")
+            except ImportError:
+                warnings.warn("Protobuf files not generated. Run: python -m grpc_tools.protoc...")
+                self.channel = None
+                self.stub = None
         except ImportError:
-            raise RuntimeError(
-                "gRPC not installed. Run: pip install grpcio grpcio-tools\n" "Then: python -m grpc_tools.protoc ..."
-            )
+            warnings.warn("gRPC not installed. Install with: pip install grpcio grpcio-tools")
+            self.channel = None
+            self.stub = None
 
-        self.channel = grpc.insecure_channel(server_url)
-        self.stub = c2_pb2_grpc.C2ServerStub(self.channel)
-        logger.info(f"Connected to Go server: {server_url}")
-
-    async def register_agent(self, agent_id: str, metadata: Dict[str, str]) -> bool:
+    def register_agent(self, hostname: str, username: str, os_type: str, arch: str, metadata: Dict[str, str]) -> Optional[str]:
         """Register new agent with Go server."""
-        # Will implement with protobuf messages
-        pass
+        if self.stub is None:
+            raise RuntimeError("gRPC not available")
+        # Implementation would use protobuf messages
+        return None
 
-    async def send_command(self, agent_id: str, command: str) -> str:
+    def send_command(self, agent_id: str, command: str) -> Optional[str]:
         """Send command to agent through Go server."""
-        # Will implement with protobuf messages
-        pass
+        if self.stub is None:
+            raise RuntimeError("gRPC not available")
+        # Implementation would use protobuf messages
+        return None
 
-    async def get_agent_results(self, agent_id: str) -> List[Dict[str, Any]]:
+    def get_agent_results(self, agent_id: str) -> List[Dict[str, Any]]:
         """Retrieve command results from agent."""
-        # Will implement with protobuf messages
-        pass
+        if self.stub is None:
+            raise RuntimeError("gRPC not available")
+        # Implementation would use protobuf messages
+        return []
 
 
 class C2Orchestrator:

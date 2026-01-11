@@ -14,3 +14,13 @@ keyring>=24.3.0
 python-dateutil>=2.8.2
 tqdm>=4.66.1
 prompt-toolkit>=3.0.43
+
+# gRPC for server communication
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+protobuf>=4.25.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
